@@ -1,0 +1,16 @@
+{
+  "name": "pixhost-dw",
+  "domains": [
+    "pixhost.cc"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "regex",
+      "url": "{thumb_url}",
+      "field": "image_url",
+      "selector": "^https?://t(\\d+)\\.pixhost\\.cc/thumbs/([^/]+)/([^/]+)$",
+      "replace": "https://img${1}.pixhost.cc/images/${2}/${3}"
+    }
+  ]
+}

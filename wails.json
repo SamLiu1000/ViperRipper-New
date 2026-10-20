@@ -1,0 +1,17 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "ViperRipper New",
+  "outputfilename": "ViperRipper New",
+  "frontend:install": "",
+  "frontend:build": "",
+  "author": {
+    "name": "ViperRipper"
+  },
+  "info": {
+    "productName": "ViperRipper New",
+    "productVersion": "0.1.0",
+    "companyName": "ViperRipper New",
+    "copyright": "ViperRipper New",
+    "comments": "Gallery collection manager"
+  }
+}

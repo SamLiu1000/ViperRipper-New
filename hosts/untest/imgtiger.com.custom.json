@@ -1,0 +1,28 @@
+{
+  "name": "imgtiger.com",
+  "domains": [
+    "imgtiger.com"
+  ],
+  "note": "由原版 ViperRipper (2018) hosts.xml 转换；imageAction=NEED_NOTHING；未经实机验证，下载异常时在规则列表里关掉即可",
+  "referer": "https://imgtiger.com/",
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[@onclick='scale(this);']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[@onclick='scale(this);']",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

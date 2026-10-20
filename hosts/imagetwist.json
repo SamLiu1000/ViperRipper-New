@@ -1,0 +1,27 @@
+{
+  "name": "imagetwist",
+  "domains": [
+    "imagetwist.com"
+  ],
+  "referer": "https://imagetwist.com/",
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[contains(@class, 'img')]",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[contains(@class, 'img')]",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "vipergirls",
+  "domains": [
+    "vipergirls.to"
+  ],
+  "note": "recorded 2026-10-18 (extension v3)",
+  "referer": "https://vipergirls.to/",
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[@src='https://t1.pixhost.cc/thumbs/5073/588379717_14-naughty-eufrat-playing-with-herself.jpg']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[@src='https://t1.pixhost.cc/thumbs/5073/588379717_14-naughty-eufrat-playing-with-herself.jpg']",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

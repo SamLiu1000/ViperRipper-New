@@ -1,0 +1,49 @@
+{
+  "name": "imx",
+  "domains": [
+    "imx.to"
+  ],
+  "enabled": true,
+  "note": "imx 直链与缩略图同路径结构（缩略图的 u/t/、t/、upload/small/ → image.imx.to/u/i/），直接从 {thumb_url} 推导，零网络请求；步骤 2 校验推导结果。purpose=filename 的步骤仅在设置开启“抓取原文件名”时执行（访问页面拿 alt 真名，与原版 vripper 的 TRY_TO_FETCH_ORIGINAL_FILENAME 一致）。",
+  "steps": [
+    {
+      "action": "regex",
+      "url": "{thumb_url}",
+      "field": "image_url",
+      "selector": "^https?://[^/]+/(?:u/t/|upload/small/|t/)(.+)$",
+      "replace": "https://image.imx.to/u/i/${1}"
+    },
+    {
+      "action": "search",
+      "url": "{image_url}",
+      "field": "image_url",
+      "selector": "^https?://image\\.imx\\.to/u/i/.+$"
+    },
+    {
+      "action": "set",
+      "field": "filename",
+      "value": "{url_name}"
+    },
+    {
+      "action": "get",
+      "url": "{page_url}",
+      "purpose": "filename"
+    },
+    {
+      "action": "post",
+      "url": "{page_url}",
+      "purpose": "filename",
+      "data": {
+        "imgContinue": "Continue to your image..."
+      }
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "purpose": "filename",
+      "selector": "//img[@class='centred']",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

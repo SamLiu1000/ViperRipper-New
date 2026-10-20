@@ -1,0 +1,62 @@
+{
+  "name": "imglil.com",
+  "domains": [
+    "imglil.com"
+  ],
+  "note": "由原版 ViperRipper (2018) hosts.xml 转换；imageAction=NEED_POST；未经实机验证，下载异常时在规则列表里关掉即可",
+  "referer": "https://imglil.com/",
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "pp_next",
+      "selector": "//input[@name='next']",
+      "attr": "value"
+    },
+    {
+      "action": "extract",
+      "field": "pp_1",
+      "selector": "//input[@name='1']",
+      "attr": "value"
+    },
+    {
+      "action": "extract",
+      "field": "pp_2",
+      "selector": "//input[@name='2']",
+      "attr": "value"
+    },
+    {
+      "action": "extract",
+      "field": "pp_3",
+      "selector": "//input[@name='3']",
+      "attr": "value"
+    },
+    {
+      "action": "post",
+      "url": "{page_url}",
+      "data": {
+        "1": "{pp_1}",
+        "2": "{pp_2}",
+        "3": "{pp_3}",
+        "next": "{pp_next}"
+      }
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[contains(@src,'imglil')]",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[contains(@src,'imglil')]",
+      "attr": "src",
+      "default": "{url_name}"
+    }
+  ]
+}

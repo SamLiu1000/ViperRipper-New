@@ -1,0 +1,26 @@
+{
+  "name": "imgbox",
+  "domains": [
+    "imgbox.com"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[@id='img']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[@id='img']",
+      "attr": "title",
+      "default": "{url_name}"
+    }
+  ]
+}

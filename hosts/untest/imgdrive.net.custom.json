@@ -1,0 +1,62 @@
+{
+  "name": "imgdrive.net",
+  "domains": [
+    "imgdrive.net"
+  ],
+  "note": "由原版 ViperRipper (2018) hosts.xml 转换；imageAction=NEED_POST；原规则提示可由缩略图推导（small→big）；未经实机验证，下载异常时在规则列表里关掉即可",
+  "referer": "https://imgdrive.net/",
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "pp_next",
+      "selector": "//input[@name='next']",
+      "attr": "value"
+    },
+    {
+      "action": "extract",
+      "field": "pp_op",
+      "selector": "//input[@name='op']",
+      "attr": "value"
+    },
+    {
+      "action": "extract",
+      "field": "pp_pre",
+      "selector": "//input[@name='pre']",
+      "attr": "value"
+    },
+    {
+      "action": "extract",
+      "field": "pp_id",
+      "selector": "//input[@name='id']",
+      "attr": "value"
+    },
+    {
+      "action": "post",
+      "url": "{page_url}",
+      "data": {
+        "id": "{pp_id}",
+        "next": "{pp_next}",
+        "op": "{pp_op}",
+        "pre": "{pp_pre}"
+      }
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[contains(concat(' ',normalize-space(@class),' '),' pic ')]",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[contains(concat(' ',normalize-space(@class),' '),' pic ')]",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "imx-s",
+  "domains": [
+    "imx.to"
+  ],
+  "note": "recorded 2026-10-18 (extension v3), source search fallback",
+  "referer": "https://imx.to/",
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "post",
+      "url": "https://imx.to/i/55jrdt",
+      "grab_form": true
+    },
+    {
+      "action": "search",
+      "url": "{body}",
+      "field": "image_url",
+      "selector": "https?://[^\"'\\s\u003c\u003e]+55jrdt[^\"'\\s\u003c\u003e]*"
+    },
+    {
+      "action": "set",
+      "field": "filename",
+      "value": "{url_name}"
+    }
+  ]
+}

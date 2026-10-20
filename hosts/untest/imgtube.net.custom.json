@@ -1,0 +1,41 @@
+{
+  "name": "imgtube.net",
+  "domains": [
+    "imgtube.net"
+  ],
+  "note": "由原版 ViperRipper (2018) hosts.xml 转换；imageAction=NEED_POST；未经实机验证，下载异常时在规则列表里关掉即可",
+  "referer": "https://imgtube.net/",
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "pp_continue_to_image",
+      "selector": "//input[contains(concat(' ',normalize-space(@class),' '),' continue_to_image ')]",
+      "attr": "value"
+    },
+    {
+      "action": "post",
+      "url": "{page_url}",
+      "data": {
+        "continue_to_image": "{pp_continue_to_image}"
+      }
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[@id='image']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[@id='image']",
+      "attr": "src",
+      "default": "{url_name}"
+    }
+  ]
+}

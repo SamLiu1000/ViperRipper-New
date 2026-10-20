@@ -1,0 +1,26 @@
+{
+  "name": "pixxxels",
+  "domains": [
+    "pixxxels.cc"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//*[@id='download']",
+      "attr": "href"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "/html/body/main/div/div[3]/div[1]/h6",
+      "attr": "text",
+      "default": "{url_name}"
+    }
+  ]
+}

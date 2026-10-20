@@ -1,0 +1,26 @@
+{
+  "name": "postimg",
+  "domains": [
+    "postimg.cc"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[contains(@class,'img-fluid')]",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[contains(@class,'img-fluid')]",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

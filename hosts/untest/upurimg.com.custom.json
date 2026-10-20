@@ -1,0 +1,41 @@
+{
+  "name": "upurimg.com",
+  "domains": [
+    "upurimg.com"
+  ],
+  "note": "由原版 ViperRipper (2018) hosts.xml 转换；imageAction=NEED_POST；未经实机验证，下载异常时在规则列表里关掉即可",
+  "referer": "https://upurimg.com/",
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "pp_imgcontinue",
+      "selector": "//input[@name='imgContinue']",
+      "attr": "value"
+    },
+    {
+      "action": "post",
+      "url": "{page_url}",
+      "data": {
+        "imgContinue": "{pp_imgcontinue}"
+      }
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[(contains(@class,'centred') or contains(@class,'centred_resized'))]",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[(contains(@class,'centred') or contains(@class,'centred_resized'))]",
+      "attr": "src",
+      "default": "{url_name}"
+    }
+  ]
+}

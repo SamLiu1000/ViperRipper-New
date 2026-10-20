@@ -1,0 +1,28 @@
+{
+  "name": "vipergirls2",
+  "domains": [
+    "vipergirls.to"
+  ],
+  "note": "recorded 2026-10-18 (extension v3)",
+  "referer": "https://vipergirls.to/",
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[@src='https://i.postimg.cc/WpGM8ngV/image.jpg']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[@src='https://i.postimg.cc/WpGM8ngV/image.jpg']",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "pixhost",
+  "domains": [
+    "pixhost.to",
+    "pixhost.cc"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[@id='image']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[@id='image']",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

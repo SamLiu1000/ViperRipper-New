@@ -1,0 +1,33 @@
+{
+  "name": "acidimg",
+  "domains": [
+    "acidimg.cc"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "post",
+      "url": "{page_url}",
+      "data": {
+        "imgContinue": "Continue to your image"
+      }
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[@class='centred']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[@class='centred']",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

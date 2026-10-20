@@ -1,0 +1,26 @@
+{
+  "name": "imgspice",
+  "domains": [
+    "imgspice.com"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[@id='imgpreview']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[@id='imgpreview']",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

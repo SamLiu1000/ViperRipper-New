@@ -1,0 +1,26 @@
+{
+  "name": "turboimagehost",
+  "domains": [
+    "turboimagehost.com"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[@id='imageid']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//div[contains(@class,'titleFullS')]/h1",
+      "attr": "text",
+      "default": "{url_name}"
+    }
+  ]
+}

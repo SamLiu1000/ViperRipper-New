@@ -1,0 +1,51 @@
+{
+  "name": "imx",
+  "domains": [
+    "imx.to"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "regex",
+      "url": "{thumb_url}",
+      "field": "image_url",
+      "selector": "^(.+)$",
+      "replace": "${1}"
+    },
+    {
+      "action": "regex",
+      "field": "image_url",
+      "selector": "^https?://image\\.imx\\.to/u/t/(.+)$",
+      "replace": "https://image.imx.to/u/i/${1}"
+    },
+    {
+      "action": "regex",
+      "field": "image_url",
+      "selector": "^https?://imx\\.to/u/t/(.+)$",
+      "replace": "https://image.imx.to/u/i/${1}"
+    },
+    {
+      "action": "regex",
+      "field": "image_url",
+      "selector": "^https?://t\\.imx\\.to/t/(.+)$",
+      "replace": "https://image.imx.to/u/i/${1}"
+    },
+    {
+      "action": "regex",
+      "field": "image_url",
+      "selector": "^https?://i\\.imx\\.to/t/(.+)$",
+      "replace": "https://image.imx.to/u/i/${1}"
+    },
+    {
+      "action": "regex",
+      "field": "image_url",
+      "selector": "^https?://imx\\.to/upload/small/(.+)$",
+      "replace": "https://image.imx.to/u/i/${1}"
+    },
+    {
+      "action": "regex",
+      "field": "image_url",
+      "selector": "^\\{thumb_url\\}$"
+    }
+  ]
+}

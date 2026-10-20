@@ -1,0 +1,27 @@
+{
+  "name": "imagezilla",
+  "domains": [
+    "imagezilla.net"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "regex",
+      "url": "{page_url}",
+      "field": "image_url",
+      "selector": "show",
+      "replace": "images"
+    },
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[@id='photo']",
+      "attr": "title",
+      "default": "{url_name}"
+    }
+  ]
+}

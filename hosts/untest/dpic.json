@@ -1,0 +1,26 @@
+{
+  "name": "dpic",
+  "domains": [
+    "dpic.me"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//img[@id='pic']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//img[@id='pic']",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

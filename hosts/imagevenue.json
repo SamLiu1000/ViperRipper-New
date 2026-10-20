@@ -1,0 +1,30 @@
+{
+  "name": "imagevenue",
+  "domains": [
+    "imagevenue.com"
+  ],
+  "enabled": true,
+  "steps": [
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "get",
+      "url": "{page_url}"
+    },
+    {
+      "action": "extract",
+      "field": "image_url",
+      "selector": "//a[@data-toggle='full']/img[@id='main-image']",
+      "attr": "src"
+    },
+    {
+      "action": "extract",
+      "field": "filename",
+      "selector": "//a[@data-toggle='full']/img[@id='main-image']",
+      "attr": "alt",
+      "default": "{url_name}"
+    }
+  ]
+}

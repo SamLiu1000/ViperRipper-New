@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ViperRipper New</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#eeeeee; overflow:hidden; }
+  #gv-app {
+    --gv-bg: #eeeeee;
+    --gv-panel: #e6e7e9;
+    --gv-line: #cfcfd2;
+    --gv-fg: #1f2023;
+    --gv-fg2: #6a6b70;
+    --gv-sel: #3c6a8e;
+    --gv-accent: #3c74a8;
+    --gv-ok: #47855e;
+    --gv-warn: #a67c3a;
+    --gv-err: #b05048;
+    --gv-orange: #e8912d;
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 12px; color: var(--gv-fg);
+    height: 100vh; display:flex; flex-direction:column;
+  }
+  #gv-app * { box-sizing: border-box; margin: 0; }
+  #gv-app .gv-main { position:relative; flex:1; display:flex; flex-direction:column; min-height:0; }
+  #gv-app .gv-menubar { display: flex; align-items: center; gap: 14px; padding: 3px 10px; background: var(--gv-panel); border-bottom: 1px solid var(--gv-line); }
+  #gv-app .gv-menubar > .gv-drop > span { cursor: default; padding: 2px 6px; border-radius:4px; }
+  #gv-app .gv-menubar > .gv-drop > span:hover { color: var(--gv-accent); }
+  /* 语言切换按钮（菜单栏右侧） */
+  #gv-app .gv-lang {
+    margin-left: auto; padding: 2px 8px; min-width: 38px;
+    font: inherit; font-size: 12px; color: var(--gv-fg2);
+    background: transparent; border: 1px solid var(--gv-line);
+    border-radius: 4px; cursor: pointer;
+  }
+  #gv-app .gv-lang:hover { color: var(--gv-fg); border-color: var(--gv-fg2); }
+
+  /* proxy toggle living in the menubar (right of 帮助) */
+  #gv-app .gv-proxy { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--gv-fg2); cursor: pointer; user-select: none; }
+  #gv-app .gv-proxy:hover { color: var(--gv-fg); }
+  #gv-app .gv-proxy .gv-toggle { width: 34px; height: 18px; border-radius: 9px; }
+  #gv-app .gv-proxy .gv-toggle i { width: 14px; height: 14px; }
+  #gv-app .gv-proxy .gv-toggle[aria-pressed="true"] i { left: 18px; }
+  #gv-app .gv-addbar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--gv-line); background: var(--gv-panel); }
+  #gv-app .gv-addbar .gv-globe { color: var(--gv-fg2); display: flex; }
+  #gv-app .gv-addbar input { flex: 1; min-width: 0; border: 1px solid var(--gv-line); border-radius: 4px; background: var(--gv-bg); color: var(--gv-fg); font: inherit; padding: 4px 9px; outline: none; }
+  #gv-app .gv-addbar input:focus { border-color: var(--gv-accent); }
+  #gv-app .gv-addbtn { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; border: 1px solid var(--gv-line); border-radius: 4px; background: var(--gv-bg); color: var(--gv-fg); font: inherit; padding: 4px 12px; cursor: pointer; }
+  #gv-app .gv-addbtn:hover { border-color: var(--gv-fg2); }
+  #gv-app .gv-tabs { display: flex; gap: 2px; padding: 5px 8px 0; background: var(--gv-panel); border-bottom: 1px solid var(--gv-line); }
+  #gv-app .gv-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; border-bottom: none; background: transparent; color: var(--gv-fg2); border-radius: 6px 6px 0 0; padding: 4px 14px; font: inherit; cursor: pointer; }
+  #gv-app .gv-tab.on { background: var(--gv-bg); border-color: var(--gv-line); color: var(--gv-fg); margin-bottom: -1px; }
+  /* import log button + transient summary strip next to the Download tab */
+  #gv-app .gv-impsum { display: none; align-items: center; gap: 10px; margin-left: 10px; align-self: center; padding: 2px 10px; border-radius: 4px; background: var(--gv-bg); border: 1px solid var(--gv-line); font-size: 11px; color: var(--gv-fg); white-space: nowrap; }
+  #gv-app .gv-impsum.on { display: inline-flex; }
+  #gv-app .gv-impsum b { font-weight: 600; }
+  #gv-app .gv-impsum .ok { color: var(--gv-ok); }
+  #gv-app .gv-impsum .th { color: var(--gv-accent); }
+  #gv-app .gv-impsum .dup { color: #b8860b; }
+  #gv-app .gv-impsum .fail { color: var(--gv-err); }
+  /* import log panel rows */
+  #gv-app .gv-impbatch { padding: 5px 10px 3px; font-size: 11px; color: var(--gv-fg2); border-bottom: 1px solid var(--gv-line); background: var(--gv-panel); position: sticky; top: 0; }
+  #gv-app .gv-improw { display: flex; align-items: center; gap: 7px; padding: 3px 10px; border-bottom: 1px solid #ececee; font-size: 12px; cursor: default; user-select: none; }
+  #gv-app .gv-improw.sel { background: var(--gv-sel); color: #fff; }
+  #gv-app .gv-improw .gv-impdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  #gv-app .gv-improw .gv-impdot.ok { background: var(--gv-ok); }
+  #gv-app .gv-improw .gv-impdot.thread { background: var(--gv-accent); }
+  #gv-app .gv-improw .gv-impdot.dup { background: #d4a017; }
+  #gv-app .gv-improw .gv-impdot.fail { background: var(--gv-err); }
+  #gv-app .gv-improw .gv-impurl { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #gv-app .gv-improw .gv-impnote { color: var(--gv-fg2); font-size: 11px; flex: none; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #gv-app .gv-improw.sel .gv-impnote { color: rgba(255,255,255,.8); }
+  #gv-app .gv-impmenu { position: fixed; z-index: 1000; background: var(--gv-panel); border: 1px solid var(--gv-line); border-radius: 5px; box-shadow: 0 4px 14px rgba(0,0,0,.18); padding: 3px; display: none; flex-direction: column; min-width: 140px; }
+  #gv-app .gv-impmenu.open { display: flex; }
+  #gv-app .gv-impmenu button { border: none; background: transparent; color: var(--gv-fg); font: inherit; font-size: 12px; text-align: left; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+  #gv-app .gv-impmenu button:hover { background: var(--gv-sel); color: #fff; }
+  #gv-app .gv-split { flex:1; display: flex; min-height:0; }
+  #gv-app .gv-content { flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--gv-line); overflow: hidden; }
+  #gv-app .gv-pane { flex: 1; display: none; min-height: 0; flex-direction: column; position: relative; }
+  #gv-app[data-tab="dl"] .gv-pane-dl, #gv-app[data-tab="th"] .gv-pane-th, #gv-app[data-tab="log"] .gv-pane-log { display: flex; }
+  #gv-app .gv-table { flex: 1; overflow: auto; min-height: 0; position: relative; }
+  #gv-app .gv-hrow, #gv-app .gv-row {
+    display: grid; grid-template-columns: minmax(120px,1.3fr) 70px minmax(100px,1fr) minmax(84px,.9fr) 108px minmax(80px,.8fr);
+    gap: 8px; align-items: center; padding: 0 8px;
+  }
+  #gv-app .gv-hrow { height: 23px; font-size: 11px; color: var(--gv-fg2); background: var(--gv-panel); border-bottom: 1px solid var(--gv-line); position: sticky; top: 0; z-index:2; }
+  /* 编辑模式：勾选框绝对定位在行左侧，不占 grid 列（列宽/排序系统无视它） */
+  #gv-app .gv-table.editing .gv-row, #gv-app .gv-table.editing .gv-hrow { padding-left: 26px; }
+  #gv-app .gv-ckbox { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); margin: 0; width: 13px; height: 13px; cursor: pointer; z-index: 3; }
+  #gv-app .gv-row { position: relative; height: 26px; border-bottom: 1px solid #dedee0; user-select: none; cursor: default; }
+  /* 用户标记：行左侧 3px 色条。用伪元素而不是 box-shadow——黄色主题行自带
+     box-shadow，会按优先级把色条盖掉（之前就是这个原因看不到颜色）。 */
+  #gv-app .gv-row[data-mark]::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--gv-mark); z-index: 4; pointer-events: none;
+  }
+  #gv-app .gv-row[data-mark="red"] { --gv-mark: #e5484d; }
+  #gv-app .gv-row[data-mark="orange"] { --gv-mark: #f76b15; }
+  #gv-app .gv-row[data-mark="yellow"] { --gv-mark: #d6a521; }
+  #gv-app .gv-row[data-mark="green"] { --gv-mark: #30a46c; }
+  #gv-app .gv-row[data-mark="blue"] { --gv-mark: #3e8ae0; }
+  #gv-app .gv-row[data-mark="purple"] { --gv-mark: #8e6ad6; }
+  /* 标记子菜单里的色块 */
+  #gv-app .gv-mk { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.18); }
+  #gv-app .gv-row > .gv-act.more { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); opacity: 0; transition: opacity .12s; border:none; background:transparent; color:inherit; cursor:pointer; display:flex; padding:2px; }
+  #gv-app .gv-row:hover > .gv-act.more, #gv-app .gv-row.sel > .gv-act.more { opacity: .7; }
+  #gv-app .gv-row:hover > .gv-act.more:hover, #gv-app .gv-row.sel > .gv-act.more:hover { opacity: 1; }
+  #gv-app .gv-hrow span:nth-last-child(2), #gv-app .gv-row .gv-cnt:nth-last-of-type(2) { padding-right: 20px; }
+  #gv-app .gv-hrow { align-items: stretch; }
+  /* block+ellipsis so long header labels clip instead of overlapping the next column */
+  #gv-app .gv-hrow > span { position: relative; display: block; height: 23px; line-height: 23px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* trailing spacer column: absorbs leftover width, not clickable/resizable */
+  #gv-app .gv-hrow > span.gv-ph { pointer-events: none; }
+  #gv-app .gv-hrow > span .gv-sort { font-size: 8px; margin-left: 3px; vertical-align: 1px; }
+  /* fixed full-height separator line on every header column boundary */
+  #gv-app .gv-hrow > span::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 1px; background: #c6c6ca; }
+  /* hover a boundary → its line widens and turns blue (= resize) */
+  #gv-app .gv-hrow > span.gv-bnd-line::after { width: 3px; background: var(--gv-accent); }
+  #gv-app .gv-hrow.gv-bnd, #gv-app .gv-hrow.gv-resizing { cursor: col-resize; }
+  #gv-app .gv-hrow.gv-resizing, #gv-app .gv-hrow.gv-reordering { user-select: none; }
+  /* dragged column is highlighted, not faded */
+  /* dragged column: translucent accent overlay over its original position */
+  #gv-app .gv-hrow > span.gv-dragging { background: rgba(60,116,168,.28); }
+  /* floating ghost header label following the mouse */
+  #gv-app .gv-ghost { position: absolute; display: none; align-items: center; padding: 0 10px; height: 23px; background: rgba(60,116,168,.55); color: #fff; border-radius: 3px 3px 0 0; z-index: 12; pointer-events: none; white-space: nowrap; }
+  /* full-table-height drop/resize indicator line */
+  #gv-app .gv-dropline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--gv-accent); z-index: 11; display: none; pointer-events: none; }
+  #gv-app .gv-row:hover { background: #e2e2e4; }
+  #gv-app .gv-row.sel { background: var(--gv-sel); color: #fff; }
+  #gv-app .gv-row.gv-row-thread {
+    background: linear-gradient(180deg, #c9c9cd 0%, #bfbfc4 45%, #b2b2b8 100%);
+    border-bottom-color: #9a9aa0;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(0,0,0,.12);
+  }
+  #gv-app .gv-row.gv-row-thread:hover { background: linear-gradient(180deg, #d4d4d8 0%, #cacacf 45%, #bdbdc3 100%); }
+  #gv-app .gv-row.gv-row-thread.sel { background: var(--gv-sel); color: #fff; }
+  #gv-app .gv-row.gv-row-thread .gv-name { font-weight: 600; text-shadow: 0 1px 0 rgba(255,255,255,.35); }
+  /* 主题管理视图：主条目钉在表头（23px）下面，楼层照常滚动，方便随时退出/看主题名 */
+  #gv-app .gv-row.gv-row-thread.gv-pinned { position: sticky; top: 23px; z-index: 3; }
+  #gv-app .gv-thread-close {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    width: 18px; height: 18px; border-radius: 50%; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+    background: #d64541; color: #fff;
+  }
+  #gv-app .gv-thread-close:hover { background: #b93832; }
+  #gv-app .gv-thread-close svg { width: 12px; height: 12px; }
+  #gv-app .gv-row.sel .gv-name, #gv-app .gv-row.sel .gv-cnt, #gv-app .gv-row.sel .gv-state span { color: #fff; }
+  #gv-app .gv-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* rows: clip cells at their grid track so narrowed columns never overlap neighbours */
+  #gv-app .gv-row > span, #gv-app .gv-hrow > span { min-width: 0; overflow: hidden; }
+  #gv-app .gv-cnt { font-size: 11px; color: var(--gv-fg2); white-space: nowrap; text-overflow: ellipsis; }
+  #gv-app .gv-state { position: relative; height: 20px; border-radius: 3px; overflow: hidden; background: #d8d8da; display: flex; align-items: center; }
+  #gv-app .gv-state i { position: absolute; inset: 0; width:0; background: linear-gradient(180deg,#f6c377,#e8912d 55%,#d97f1c); box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -1px 0 rgba(0,0,0,.12); }
+  #gv-app .gv-state span { color: #1f2023; }
+  /* 下载中的条目：状态条微微发光（缓慢呼吸），一眼能看出哪几个在跑。
+     发光画在容器上而不是内层进度条——容器是 overflow:hidden，内层外发光会被裁掉。 */
+  #gv-app .gv-state.gv-dl {
+    box-shadow: 0 0 5px rgba(232,145,29,.45), 0 0 10px rgba(232,145,29,.22);
+    animation: gvDlGlow 1.8s ease-in-out infinite;
+  }
+  #gv-app .gv-state.gv-dl i { filter: brightness(1.05); }
+  @keyframes gvDlGlow {
+    0%, 100% { box-shadow: 0 0 4px rgba(232,145,29,.32), 0 0 8px rgba(232,145,29,.15); }
+    50%      { box-shadow: 0 0 8px rgba(232,145,29,.62), 0 0 16px rgba(232,145,29,.32); }
+  }
+  #gv-app .gv-state span { position: relative; width: 100%; text-align: center; font-size: 11px; }
+  /* photo list / log strip floats over the list: resizing it never pushes the table around */
+  #gv-app .gv-info { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; border-top: 1px solid var(--gv-line); background: var(--gv-panel); box-shadow: 0 -1px 4px rgba(0,0,0,.08); }
+  /* drag handle on the info strip's top edge: pull up to make this row taller */
+  #gv-app .gv-rsz { position: absolute; left: 0; right: 0; top: -4px; height: 8px; cursor: row-resize; z-index: 4; }
+  #gv-app .gv-rsz:hover { background: rgba(0,0,0,.06); }
+  #gv-app .gv-itabs { display: flex; gap: 2px; padding: 4px 8px 0; border-bottom: 1px solid var(--gv-line); }
+  #gv-app .gv-itab { border: 1px solid transparent; border-bottom: none; background: transparent; color: var(--gv-fg2); border-radius: 5px 5px 0 0; padding: 3px 12px; font: inherit; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  #gv-app .gv-itab.on { background: var(--gv-bg); border-color: var(--gv-line); color: var(--gv-fg); margin-bottom: -1px; }
+  #gv-app .gv-ibody { height: 240px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+  /* photo list fills the strip; the Log tab (top-right) replaces it when selected */
+  #gv-app #gv-phowrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #gv-app .gv-phobar { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-bottom: 1px solid var(--gv-line); font-size: 11px; flex-shrink: 0; }
+  #gv-app #gv-pho { flex: 1; overflow: auto; padding: 4px 8px; }
+  #gv-app .gv-logpane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #gv-app .gv-logpane #gv-loglist { flex: 1; overflow: auto; min-height: 0; }
+  #gv-app .gv-flds { display: flex; flex-wrap: wrap; gap: 2px 0; padding: 4px 0; }
+  #gv-app .gv-fi { display: flex; gap: 6px; min-width: 100%; padding: 2px 0; }
+  #gv-app .gv-fi.half { min-width: 50%; }
+  #gv-app .gv-fi .gv-k { color: var(--gv-fg2); flex-shrink: 0; }
+  #gv-app .gv-fi .gv-v { min-width: 0; word-break: break-all; white-space: normal; }
+  /* 图片列表的表头直接复用下载列表的 .gv-hrow 外观与交互（同一套列宽/换序/排序）；
+     末尾留一个空白填充列吸收剩余宽度，拖动列边界时才不会“往右拖内容反而左移” */
+  #gv-app .gv-phead {
+    grid-template-columns: 68px 36px minmax(160px,1fr) minmax(120px,1fr) 56px 104px 84px 1fr;
+    height: 23px; padding: 0 8px;
+    border-bottom: 1px solid var(--gv-line);
+    flex-shrink: 0;
+  }
+  #gv-app .gv-phead span:first-child { text-align: center; }
+  #gv-app .gv-prow {
+    display: grid; grid-template-columns: 68px 36px minmax(160px,1fr) minmax(120px,1fr) 56px 104px 84px 1fr;
+    gap: 8px; align-items: center; height: 56px;
+    border-bottom: 1px solid #dedee0; cursor: pointer;
+  }
+  /* 专门的“进度”列：条 + 百分比 */
+  #gv-app .gv-prow .gv-pw { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  #gv-app .gv-prow .gv-ptrack {
+    flex: 1; height: 6px; border-radius: 3px; background: #d8d9dc; overflow: hidden; min-width: 30px;
+  }
+  #gv-app .gv-prow .gv-pfill {
+    display: block; height: 100%; width: 0; border-radius: 3px;
+    background: var(--gv-accent); transition: width .18s linear;
+  }
+  #gv-app .gv-prow .gv-pct {
+    width: 40px; text-align: right; font-size: 10.5px; color: var(--gv-fg2);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  #gv-app .gv-prow.on .gv-pct { color: #fff; }
+  #gv-app .gv-prow.on .gv-ptrack { background: rgba(255,255,255,.35); }
+  #gv-app .gv-prow.on .gv-pfill { background: #fff; }
+  #gv-app .gv-prow:hover { background: #e2e2e4; }
+  #gv-app .gv-prow.on { background: var(--gv-sel); }
+  #gv-app .gv-prow.on span { color:#fff; }
+  #gv-app .gv-prow .gv-th2 { width: 68px; height: 48px; border-radius: 3px; background:#d8d8da center/contain no-repeat; }
+  #gv-app .gv-prow .gv-fn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #gv-app .gv-prow .gv-url {
+    font-size: 10.5px; color: var(--gv-fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #gv-app .gv-prow.on .gv-url { color: rgba(255,255,255,.75); }
+  #gv-app .gv-prow .gv-st2 { font-size: 11px; text-align: right; }
+  #gv-app[data-info="off"] .gv-ibody { display: none; }
+  #gv-app .gv-itabs #gv-infotoggle [data-lucide] { transition: transform .12s; }
+  #gv-app[data-info="off"] #gv-infotoggle [data-lucide] { transform: rotate(180deg); }
+  #gv-app .gv-right { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--gv-panel); min-width: 0; }
+  #gv-app[data-prev="off"] .gv-right { display: none; }
+  #gv-app .gv-rhandle {
+    width: 14px; flex-shrink: 0; border: none; border-left: 1px solid var(--gv-line);
+    background: var(--gv-panel); color: var(--gv-fg2); cursor: pointer; display: flex;
+    align-items: center; justify-content: center; padding: 0;
+  }
+  #gv-app .gv-rhandle:hover { color: var(--gv-accent); }
+  #gv-app .gv-rhandle [data-lucide] { width: 12px; height: 12px; }
+  #gv-app .gv-imgbox { position: relative; background: #f2f2f3; border-bottom: 1px solid var(--gv-line); aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; color: #b6b6ba; overflow:hidden; }
+  #gv-app .gv-imgbox img { width:100%; height:100%; object-fit: contain; }
+  /* side-panel big preview: photo area 3/5, meta below 2/5, meta scrolls independently */
+  #gv-app #gv-bigbox { flex: 3 1 0; min-height: 0; }
+  #gv-app #gv-bigbox img { -webkit-user-drag: none; user-select: none; }
+  #gv-app #gv-bigbox .gv-badge { position: absolute; top: 8px; left: 8px; padding: 2px 8px; font-size: 10px; letter-spacing: .4px; border-radius: 3px; background: rgba(255,255,255,.9); border: 1px solid var(--gv-line); color: var(--gv-fg); }
+  #gv-app #gv-bigbox .gv-badge.ok { color: var(--gv-ok); }
+  #gv-app #gv-bigbox .gv-badge.err { color: var(--gv-err); }
+  #gv-app #gv-bigbox .gv-badge.dl { color: var(--gv-accent); }
+  #gv-app .gv-meta { flex: 2 1 0; min-height: 0; overflow-y: auto; border-top: 1px solid var(--gv-line); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+  #gv-app .gv-mtitle { font-size: 12px; font-weight: 600; word-break: break-all; line-height: 1.3; }
+  #gv-app .gv-mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+  #gv-app .gv-mi { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+  #gv-app .gv-mi.wide { grid-column: 1 / -1; }
+  #gv-app .gv-mi span { font-size: 9px; color: var(--gv-fg2); text-transform: uppercase; letter-spacing: .5px; }
+  #gv-app .gv-mi b { font-size: 11px; font-weight: 500; word-break: break-all; line-height: 1.3; }
+  #gv-app .gv-imgbox .gv-cap2 { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 8px; font-size: 11px; background: rgba(250,250,250,.92); color: var(--gv-fg); border-top: 1px solid var(--gv-line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #gv-app .gv-rmeta { padding: 4px 10px; font-size: 11px; color: var(--gv-fg2); overflow:auto; }
+  #gv-app .gv-rmeta b { color: var(--gv-fg); font-weight: 500; }
+  #gv-app .gv-bbar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--gv-panel); border-top: 1px solid var(--gv-line); flex-shrink: 0; }
+  #gv-app .gv-big { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--gv-line); border-radius: 4px; background: var(--gv-bg); color: var(--gv-fg); font: inherit; padding: 5px 12px; cursor: pointer; }
+  #gv-app .gv-big:hover { border-color: var(--gv-fg2); }
+  #gv-app .gv-big.pri {
+    background: linear-gradient(180deg, #fdfdfd, #ececee 55%, #e0e0e3);
+    border-color: #9fb3cf; border-width: 1.5px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,.14);
+  }
+  #gv-app .gv-big.pri:hover { background: linear-gradient(180deg, #ffffff, #f2f2f4 55%, #e6e6e9); border-color: var(--gv-accent); }
+  #gv-app .gv-big.pri:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.18); }
+  #gv-app .gv-logrow {
+    display: grid; grid-template-columns: 74px 52px 1fr; gap: 8px;
+    padding: 3px 8px; min-height: 20px; height: auto; align-items: start;
+    font-size: 11px; border-bottom: 1px solid #e8e8ea;
+  }
+  /* 长消息（URL、异常堆栈）必须自己换行，之前固定 20px 高会盖住下一行 */
+  #gv-app .gv-logrow > span:last-child {
+    white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; line-height: 1.45;
+  }
+  #gv-app .gv-logrow .gv-t { white-space: nowrap; }
+  #gv-app .gv-logrow .gv-t { color: var(--gv-fg2); }
+  #gv-app .gv-lvl-i { color: var(--gv-accent); }
+  #gv-app .gv-lvl-w { color: var(--gv-warn); }
+  #gv-app .gv-lvl-e { color: var(--gv-err); }
+  #gv-app .gv-preview { position: fixed; z-index: 60; width: 220px; display: none; background: var(--gv-panel); border: 1px solid var(--gv-line); border-radius: 6px; padding: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.28); }
+  #gv-app .gv-preview .gv-thumbs { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+  #gv-app .gv-preview .gv-th { aspect-ratio: 1/1; border-radius: 4px; background:#d8d8da center/cover no-repeat; }
+  #gv-app .gv-preview .gv-cap { font-size: 10px; color: var(--gv-fg2); margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #gv-app .gv-mask { position: absolute; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; z-index: 40; }
+  #gv-app .gv-mask.open { display: flex; }
+  #gv-app .gv-modal { width: min(560px, 92%); max-height: 82%; overflow: auto; background: var(--gv-panel); border: 1px solid var(--gv-line); border-radius: 8px; padding: 12px; }
+  #gv-app .gv-modal.gv-wide { width: min(1066px, 96%); height: min(780px,90%); max-height: 90%; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+  #gv-app .gv-mhead { display: flex; align-items: center; gap: 8px; padding: 10px 12px 8px; border-bottom: 1px solid var(--gv-line); }
+  #gv-app .gv-mhead .gv-t { flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #gv-app .gv-selbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 7px 12px; border-bottom: 1px solid var(--gv-line); }
+  #gv-app .gv-selbar .gv-jump { width: 74px; border: 1px solid var(--gv-line); border-radius: 4px; background: var(--gv-bg); color: var(--gv-fg); font: inherit; font-size: 11px; padding: 3px 7px; outline: none; }
+  #gv-app .gv-fmid { flex: 1; display: flex; min-height: 0; }
+  #gv-app .gv-flist { flex: 1; overflow: auto; min-width: 0; position:relative; }
+  #gv-app .gv-flrow {
+    display: grid; grid-template-columns: 16px 52px 46px minmax(0,1fr) 56px 66px;
+    gap: 8px; align-items: center; height: 52px; padding: 0 12px;
+    border-bottom: 1px solid #e8e8ea; cursor: default; user-select: none;
+  }
+  #gv-app .gv-flrow .gv-th2 { width: 52px; height: 48px; border-radius: 3px; background:#d8d8da center/contain no-repeat; }
+  #gv-app .gv-flrow:hover { background: #e2e2e4; }
+  #gv-app .gv-flrow.checked { background: #e5edfb; }
+  #gv-app .gv-flrow .gv-no { font-size: 11px; color: var(--gv-fg2); }
+  #gv-app .gv-flrow .gv-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #gv-app .gv-flrow .gv-st { font-size: 11px; text-align: right; }
+  #gv-app .gv-flrow.empty { opacity: .45; }
+  #gv-app .gv-fprev { width: 218px; flex-shrink: 0; border-left: 1px solid var(--gv-line); display: flex; flex-direction: column; min-height: 0; }
+  #gv-app .gv-mfoot { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+  #gv-app .gv-mfoot .gv-note { flex: 1; font-size: 11px; color: var(--gv-fg2); }
+  #gv-app .gv-mfoot .gv-note b { font-weight: 500; }
+  #gv-app .gv-menu { position: fixed; z-index: 99; display: none; min-width: 150px; background: var(--gv-panel); border: 1px solid var(--gv-line); border-radius: 6px; padding: 3px; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+  #gv-app .gv-menu.open { display: block; }
+  #gv-app .gv-menu button { display: flex; width: 100%; align-items: center; gap: 7px; border: none; background: transparent; color: var(--gv-fg); padding: 5px 9px; border-radius: 4px; font: inherit; cursor: pointer; text-align: left; }
+  #gv-app .gv-menu button:hover { background: #ddddde; }
+  #gv-app .gv-menu button.danger { color: var(--gv-err); }
+  #gv-app .gv-menu button[disabled] { opacity: .4; cursor: default; }
+  #gv-app .gv-menu button[disabled]:hover { background: transparent; }
+  #gv-app .gv-mi { position: relative; }
+  #gv-app .gv-mi > .gv-sub {
+    display: none; position: absolute; left: 100%; top: -4px; min-width: 150px;
+    background: var(--gv-panel); border: 1px solid var(--gv-line); border-radius: 6px;
+    padding: 3px; box-shadow: 0 6px 18px rgba(0,0,0,.25); z-index: 2;
+  }
+  #gv-app .gv-mi:hover > .gv-sub { display: block; }
+  #gv-app .gv-mi .gv-arrow { margin-left: auto; opacity: .6; display:flex; }
+  #gv-app .gv-msep { height: 1px; background: var(--gv-line); margin: 3px 6px; }
+  #gv-app .gv-pane-th .gv-hrow, #gv-app .gv-pane-th .gv-row {
+    grid-template-columns: 78px minmax(120px,1fr) minmax(100px,1fr) max-content;
+  }
+  #gv-app [data-lucide] { width: 13px; height: 13px; }
+  #gv-app * { scrollbar-width: thin; scrollbar-color: #b9b9bc transparent; }
+  #gv-app ::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+  #gv-app ::-webkit-scrollbar-thumb { background: #b9b9bc; border-radius: 4px; }
+  #gv-app ::-webkit-scrollbar-thumb:hover { background: #a5a5a9; }
+  #gv-app ::-webkit-scrollbar-track, #gv-app ::-webkit-scrollbar-corner, #gv-app ::-webkit-scrollbar-button { display: none; background: transparent; }
+  #gv-app .gv-drop { position: relative; }
+  #gv-app .gv-dmenu {
+    display: none; position: absolute; left: 0; top: 100%; min-width: 190px; z-index: 90;
+    background: var(--gv-panel); border: 1px solid var(--gv-line); border-radius: 6px;
+    padding: 3px; box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  }
+  #gv-app .gv-drop.open .gv-dmenu { display: block; }
+  #gv-app .gv-dmenu button { display: flex; width: 100%; align-items: center; gap: 7px; border: none; background: transparent; color: var(--gv-fg); padding: 5px 9px; border-radius: 4px; font: inherit; cursor: pointer; text-align: left; }
+  #gv-app .gv-dmenu button:hover { background: #ddddde; }
+  #gv-app .gv-setmask { position: absolute; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; z-index: 70; }
+  #gv-app .gv-setmask.open { display: flex; }
+  #gv-app .gv-setwin { width: min(640px, 94%); height: min(460px, 88%); background: var(--gv-panel); border: 1px solid var(--gv-line); border-radius: 8px; display: flex; overflow: hidden; }
+  #gv-app .gv-setside { width: 118px; flex-shrink: 0; background: var(--gv-bg); border-right: 1px solid var(--gv-line); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+  #gv-app .gv-setside button { border: none; background: transparent; color: var(--gv-fg2); text-align: left; padding: 6px 10px; border-radius: 6px; font: inherit; cursor: pointer; }
+  #gv-app .gv-setside button.on { background: var(--gv-accent); color: #fff; }
+  #gv-app .gv-setmain { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #gv-app .gv-setbody { flex: 1; overflow: auto; padding: 12px 16px; }
+  #gv-app .gv-setfoot { border-top: 1px solid var(--gv-line); padding: 6px 12px; display: flex; gap: 6px; justify-content: flex-end; }
+  #gv-app .gv-setpage { display: none; }
+  #gv-app .gv-setpage.on { display: block; }
+  #gv-app .gv-frow { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; flex-wrap: wrap; }
+  #gv-app .gv-frow > label:first-child { width: 130px; color: var(--gv-fg2); flex-shrink: 0; }
+  #gv-app .gv-frow .gv-in { flex: 1; min-width: 120px; border: 1px solid var(--gv-line); border-radius: 4px; background: var(--gv-bg); color: var(--gv-fg); font: inherit; padding: 4px 8px; outline: none; }
+  #gv-app .gv-frow .gv-hint { width: 100%; font-size: 11px; color: var(--gv-fg2); padding-left: 140px; }
+  /* click-toggle proxy switch: pill with sliding knob, glows when on */
+  #gv-app .gv-toggle { position: relative; width: 40px; height: 20px; border-radius: 10px; border: 1px solid var(--gv-line); background: #d6d6da; cursor: pointer; padding: 0; transition: background .15s, border-color .15s; flex-shrink: 0; align-self: center; }
+  #gv-app .gv-toggle i { position: absolute; top: 1px; left: 1px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s; }
+  #gv-app .gv-toggle[aria-pressed="true"] { background: var(--gv-accent); border-color: var(--gv-accent); }
+  #gv-app .gv-toggle[aria-pressed="true"] i { left: 21px; }
+  #gv-app .gv-frow input[type="checkbox"] { width: 13px; height: 13px; }
+  #gv-app .gv-setgrp { font-weight: 500; margin: 4px 0 10px; }
+  #gv-app .gv-hostmask { position: absolute; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; z-index: 70; }
+  #gv-app .gv-hostmask.open { display: flex; }
+  #gv-app .gv-hostwin { width: min(1180px, 96%); height: min(660px, 94%); background: var(--gv-panel); border: 1px solid var(--gv-line); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
+  #gv-app .gv-hosthead { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--gv-line); font-weight: 500; }
+  #gv-app .gv-hosthead .gv-sp { flex: 1; font-size: 11px; color: var(--gv-fg2); font-weight: 400; }
+  #gv-app .gv-hostsplit { flex: 1; display: flex; min-height: 0; }
+  /* 规则列表：183 条的时候需要列 + 搜索 + 排序才管得住 */
+  #gv-app .gv-hostlist { width: min(56%, 640px); flex-shrink: 0; border-right: 1px solid var(--gv-line); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  #gv-app .gv-htools { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--gv-line); background: var(--gv-panel); }
+  #gv-app .gv-htools input, #gv-app .gv-htools select { border: 1px solid var(--gv-line); border-radius: 4px; background: var(--gv-bg); color: var(--gv-fg); font: inherit; font-size: 11px; padding: 3px 7px; outline: none; }
+  #gv-app .gv-htools input#gv-hfilter { flex: 1; min-width: 80px; }
+  #gv-app .gv-htools .gv-sp { flex: 1; }
+  #gv-app .gv-hchk { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--gv-fg2); cursor: pointer; white-space: nowrap; }
+  #gv-app .gv-hcount { font-size: 11px; color: var(--gv-fg2); white-space: nowrap; flex: none; }
+  #gv-app .gv-htable { flex: 1; min-height: 0; overflow: auto; }
+  /* 多选之后才出现的批量操作条 */
+  #gv-app .gv-hbulk { display: none; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--gv-line); background: var(--gv-bg); }
+  #gv-app .gv-hbulk.on { display: flex; }
+  #gv-app .gv-hbulk > span { font-size: 11px; color: var(--gv-fg2); white-space: nowrap; }
+  #gv-app .gv-hbulk > span b { color: var(--gv-fg); font-weight: 600; }
+  #gv-app .gv-hbulk .gv-sp { flex: 1; }
+  #gv-app .gv-hbulk .gv-addbtn { padding: 2px 10px; font-size: 11px; }
+  #gv-app .gv-hhdr, #gv-app .gv-hitem { display: grid; grid-template-columns: 22px minmax(90px,1.1fr) minmax(110px,1.3fr) 60px 40px 98px minmax(90px,1.4fr); gap: 6px; align-items: center; padding: 0 8px; font-size: 11px; }
+  #gv-app .gv-hhdr { position: sticky; top: 0; z-index: 1; height: 26px; background: var(--gv-panel); border-bottom: 1px solid var(--gv-line); color: var(--gv-fg2); user-select: none; }
+  #gv-app .gv-hhdr > span[data-sort] { cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #gv-app .gv-hhdr > span[data-sort]:hover { color: var(--gv-accent); }
+  #gv-app .gv-hhdr > span.on { color: var(--gv-fg); }
+  #gv-app .gv-hitem { height: 25px; border-bottom: 1px solid #ececee; cursor: pointer; }
+  /* 多选的行和鼠标点的行用同一套选中色（和下载列表一致），只在左侧加一道
+     橙色竖条标出“正在编辑”；悬停只作用于没被选中的行，不冲刷选中色。 */
+  #gv-app .gv-hitem.sel, #gv-app .gv-hitem.on { background: var(--gv-sel); color: #fff; }
+  #gv-app .gv-hitem.on { box-shadow: inset 3px 0 0 var(--gv-orange); }
+  #gv-app .gv-hitem:not(.sel):not(.on):hover { background: #e2e2e4; }
+  /* 停用中的规则淡一点，183 条里一眼扫出哪些是开着的 */
+  #gv-app .gv-hitem:has(input:not(:checked)) { opacity: .58; }
+  #gv-app .gv-hitem:has(input:not(:checked)):hover { opacity: 1; }
+  #gv-app .gv-hitem .gv-hn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #gv-app .gv-hitem .gv-hdom, #gv-app .gv-hitem .gv-hnote { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--gv-fg2); }
+  #gv-app .gv-hitem.on .gv-hdom, #gv-app .gv-hitem.on .gv-hnote,
+  #gv-app .gv-hitem.sel .gv-hdom, #gv-app .gv-hitem.sel .gv-hnote { color: rgba(255,255,255,.85); }
+  #gv-app .gv-hitem .gv-hnote { font-size: 10px; }
+  #gv-app .gv-hitem .gv-hnum, #gv-app .gv-hitem .gv-hdate { color: var(--gv-fg2); font-size: 10px; white-space: nowrap; }
+  #gv-app .gv-hitem.on .gv-hnum, #gv-app .gv-hitem.on .gv-hdate,
+  #gv-app .gv-hitem.sel .gv-hnum, #gv-app .gv-hitem.sel .gv-hdate { color: rgba(255,255,255,.85); }
+  #gv-app .gv-hitem .gv-tag { font-size: 10px; padding: 0 6px; border-radius: 99px; background: #d8d8da; color: var(--gv-fg2); text-align: center; }
+  #gv-app .gv-hitem .gv-tag.imported { background: #dcd3bd; color: #6a5324; }
+  #gv-app .gv-hitem.on .gv-tag, #gv-app .gv-hitem.sel .gv-tag { background: rgba(255,255,255,.25); color: #fff; }
+  #gv-app .gv-hedit { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #gv-app .gv-hform { flex: 1; overflow: auto; padding: 10px 14px; }
+  #gv-app .gv-steps { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  #gv-app .gv-step { display: flex; gap: 6px; align-items: center; background: var(--gv-bg); border: 1px solid var(--gv-line); border-radius: 6px; padding: 6px 8px; flex-wrap: wrap; }
+  #gv-app .gv-step .gv-sno { width: 20px; text-align: center; color: var(--gv-fg2); font-size: 11px; flex-shrink: 0; }
+  #gv-app .gv-step select, #gv-app .gv-step input { border: 1px solid var(--gv-line); border-radius: 4px; background: var(--gv-panel); color: var(--gv-fg); font: inherit; font-size: 11px; padding: 3px 6px; outline: none; }
+  #gv-app .gv-step .gv-sact { width: 76px; flex-shrink: 0; }
+  #gv-app .gv-step .gv-sfld { width: 88px; flex-shrink: 0; }
+  #gv-app .gv-step input { flex: 1; min-width: 40px; }
+  #gv-app .gv-stepx { border: none; background: transparent; color: var(--gv-fg2); cursor: pointer; padding: 2px; display: flex; }
+  #gv-app .gv-stepx:hover { color: var(--gv-err); }
+  #gv-app .gv-testbar { display: flex; gap: 6px; padding: 8px 14px; border-top: 1px solid var(--gv-line); align-items: center; flex-wrap: wrap; }
+  #gv-app .gv-testbar input { flex: 1; min-width: 160px; border: 1px solid var(--gv-line); border-radius: 4px; background: var(--gv-bg); color: var(--gv-fg); font: inherit; font-size: 11px; padding: 4px 8px; outline: none; }
+  #gv-app .gv-testout { padding: 7px 14px; border-top: 1px solid var(--gv-line); background: var(--gv-bg); font-size: 11px; color: var(--gv-fg2); min-height: 34px; white-space: pre-wrap; }
+  #gv-app .gv-testout b { color: var(--gv-ok); font-weight: 500; }
+  #gv-app .gv-testout .bad { color: var(--gv-err); }
+  #gv-app .gv-hfoot { border-top: 1px solid var(--gv-line); padding: 6px 12px; display: flex; gap: 6px; }
+  #gv-app .gv-hfoot .gv-sp { flex:1; }
+  /* 轻量浮窗：操作已生效的即时反馈 */
+  /* fullscreen lightbox for the right-side preview image */
+  #gv-app #gv-lightbox { position: fixed; inset: 0; z-index: 90; background: rgba(15,16,18,.92); display: none; align-items: center; justify-content: center; overflow: hidden; }
+  #gv-app #gv-lightbox.open { display: flex; }
+  #gv-app #gv-lbimg { max-width: 92vw; max-height: 92vh; transform-origin: 0 0; will-change: transform; user-select: none; -webkit-user-drag: none; box-shadow: 0 6px 40px rgba(0,0,0,.5); cursor: grab; }
+  #gv-app #gv-lightbox.dragging #gv-lbimg { cursor: grabbing; }
+  #gv-app #gv-lightbox::after { content: "滚轮缩放 · 拖拽移动 · 双击还原 · Esc 关闭"; position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); color: rgba(255,255,255,.65); font-size: 12px; pointer-events: none; }
+  #gv-toasts { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);               display: flex; flex-direction: column; align-items: center; gap: 6px;
+               z-index: 400; pointer-events: none; }
+  #gv-toasts .gv-toast { background: rgba(28,32,38,.93); color: #fff; font-size: 12px;
+               padding: 7px 14px; border-radius: 999px; max-width: 72vw;
+               box-shadow: 0 6px 18px rgba(0,0,0,.24); animation: gvToastIn .16s ease-out; }
+  #gv-toasts .gv-toast.out { opacity: 0; transform: translateY(5px); transition: opacity .2s ease-in, transform .2s ease-in; }
+  @keyframes gvToastIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+  /* 人机验证提示条：右下角常驻，不挡列表操作 */
+  #gv-app .gv-cfbar { position: fixed; right: 18px; bottom: 18px; width: 322px; z-index: 500;
+    display: none; background: var(--gv-panel); border: 1px solid var(--gv-line);
+    border-left: 3px solid #d6a521; border-radius: 8px; padding: 10px 12px;
+    box-shadow: 0 8px 26px rgba(0,0,0,.22); font-size: 12px; color: var(--gv-fg); }
+  #gv-app .gv-cfbar.open { display: block; }
+  #gv-app .gv-cfbar .gv-cftitle { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  #gv-app .gv-cfbar .gv-cftitle svg { width: 15px; height: 15px; color: #d6a521; }
+  #gv-app .gv-cfbar .gv-cfhint { color: var(--gv-fg2); line-height: 1.55; }
+  #gv-app .gv-cfbar .gv-cfbtns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+  #gv-app .gv-cfbar button { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 5px;
+    cursor: pointer; border: 1px solid var(--gv-line); background: var(--gv-bg); color: var(--gv-fg); }
+  #gv-app .gv-cfbar button.gv-cfgo { background: var(--gv-accent); border-color: var(--gv-accent); color: #fff; }
+  #gv-app .gv-cfbar button.gv-cfgo:disabled { opacity: .6; cursor: default; }
+</style>
+</head>
+<body>
+<div id="gv-app" data-tab="dl" data-prev="on" data-info="on">
+  <div class="gv-main">
+    <div class="gv-menubar">
+      <div class="gv-drop"><span>文件</span><div class="gv-dmenu">
+        <button id="gv-m-add"><i data-lucide="plus"></i>添加链接</button>
+        <button id="gv-m-import"><i data-lucide="download"></i>导入数据 (JSON)</button>
+        <button id="gv-m-export"><i data-lucide="upload"></i>导出全部数据 (JSON)</button>
+        <div class="gv-msep"></div>
+        <button id="gv-m-opendir"><i data-lucide="folder-open"></i>打开下载目录</button>
+        <button id="gv-m-quit"><i data-lucide="log-out"></i>退出</button>
+      </div></div>
+      <div class="gv-drop"><span>选项</span><div class="gv-dmenu">
+        <button id="gv-m-set"><i data-lucide="settings"></i>设置</button>
+        <button id="gv-m-hosts"><i data-lucide="server"></i>规则管理</button>
+      </div></div>
+      <div class="gv-drop"><span>帮助</span><div class="gv-dmenu">
+        <button id="gv-m-about"><i data-lucide="info"></i>关于</button>
+      </div></div>
+      <label class="gv-proxy" id="gv-proxybar" title="代理开关：开启后新开始的下载使用「论坛」页填写的代理地址；进行中的连接需停止后重新开始才会切换">
+        <span>代理</span>
+        <button type="button" class="gv-toggle" id="gv-s-proxyon" aria-pressed="false"><i></i></button>
+      </label>
+      <button class="gv-lang" id="gv-langbtn" title="Switch UI language / 切换界面语言">EN</button>
+    </div>
+
+    <div class="gv-addbar">
+      <span class="gv-globe"><i data-lucide="search"></i></span>
+      <input id="gv-search" placeholder="搜索收藏（标题、楼层内容…）">
+      <button class="gv-addbtn" id="gv-openadd"><i data-lucide="plus"></i>添加链接</button>
+    </div>
+
+    <div class="gv-tabs">
+      <button class="gv-tab on" data-mtab="dl"><i data-lucide="download"></i>下载列表</button>
+      <button class="gv-tab" id="gv-importbtn" style="margin-left:6px"><i data-lucide="scroll-text"></i>导入历史</button>
+      <span class="gv-impsum" id="gv-impsum"></span>
+      <span style="flex:1"></span>
+      <button class="gv-tab" id="gv-editexp" style="display:none"><i data-lucide="link"></i>导出选中链接</button>
+      <button class="gv-tab" id="gv-editdel" style="display:none;color:var(--gv-err)"><i data-lucide="trash-2"></i>删除选中</button>
+      <button class="gv-tab" id="gv-editbtn"><i data-lucide="pencil-line"></i>编辑</button>
+          </div>
+
+    <div class="gv-split">
+      <div class="gv-content">
+        <div class="gv-pane gv-pane-dl">
+          <div class="gv-table" id="gv-dlist">
+            <div class="gv-hrow"><span data-col="0">标题</span><span data-col="1">楼层号</span><span data-col="2">进度</span><span data-col="3">状态</span><span data-col="4">添加日期</span><span data-col="5">图床</span><span class="gv-ph"></span></div>
+          </div>
+          <div class="gv-info" id="gv-info">
+            <div class="gv-rsz" id="gv-inforz" title="拖拽调整此栏高度"></div>
+            <div class="gv-itabs">
+              <button class="gv-itab on" data-itab="pho"><i data-lucide="image"></i>图片列表</button>
+              <button class="gv-itab" data-itab="log"><i data-lucide="database"></i>日志</button>
+              <span style="flex:1"></span>
+              <button class="gv-itab" id="gv-infotoggle" style="padding:3px 8px"><i data-lucide="chevron-down"></i></button>
+            </div>
+            <div class="gv-ibody" id="gv-ibody">
+                <div id="gv-phowrap">
+                <div class="gv-phobar">
+                  <span id="gv-ondisk" style="color:var(--gv-fg2)">选中一个条目查看磁盘统计</span>
+                  <span style="flex:1"></span>
+                </div>
+                <div class="gv-hrow gv-phead">
+                  <span class="gv-ph"></span><span data-col="1">#</span><span data-col="2">图片名</span><span data-col="3">图片链接</span><span data-col="4">大小</span><span data-col="5">下载进度</span><span data-col="6">状态</span><span class="gv-ph"></span>
+                </div>
+                <div id="gv-pho"></div>
+              </div>
+              <div class="gv-logpane" style="display:none">
+                <div class="gv-table" id="gv-loglist"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gv-pane gv-pane-th">
+          <div class="gv-table" id="gv-tlist">
+            <div class="gv-hrow"><span data-col="0">添加日期</span><span data-col="1">标题</span><span data-col="2">链接</span><span data-col="3">楼层数</span><span class="gv-ph"></span></div>
+          </div>
+        </div>
+
+        <div class="gv-bbar">
+          <button class="gv-big pri" id="gv-run"><i data-lucide="play"></i><span>开始下载</span></button>
+          <span id="gv-selhint" style="font-size:11px;color:var(--gv-fg2)"></span>
+        </div>
+      </div>
+
+      <div class="gv-right" id="gv-right">
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+          <div class="gv-imgbox" style="aspect-ratio:auto" id="gv-bigbox">
+            <i data-lucide="image" style="width:30px;height:30px;opacity:.7" id="gv-bigph"></i>
+            <span class="gv-badge" id="gv-bigbadge" style="display:none"></span>
+            <span class="gv-cap2" id="gv-bigcap" style="display:none"></span>
+          </div>
+          <div class="gv-meta" id="gv-imginfo"></div>
+        </div>
+      </div>
+      <button class="gv-rhandle" id="gv-rhandle" title="展开 / 收起预览">
+        <i data-lucide="chevron-right"></i>
+      </button>
+    </div>
+
+    <!-- add links modal -->
+    <div class="gv-mask" id="gv-addmask">
+      <div class="gv-modal" style="width:70%;height:70%;display:flex;flex-direction:column;padding:10px;resize:both;overflow:hidden;min-width:520px;min-height:300px">
+        <div class="gv-mhead"><span class="gv-t">添加链接</span>
+          <button class="gv-act" id="gv-addclose" style="border:none;background:transparent;color:var(--gv-fg2);cursor:pointer;display:flex"><i data-lucide="x"></i></button>
+        </div>
+        <textarea id="gv-addtext" style="flex:1;resize:none;border:1px solid var(--gv-accent);border-radius:6px;outline:none;font:inherit;padding:8px;background:var(--gv-bg);color:var(--gv-fg)" placeholder="粘贴帖子或楼层链接，每行一个，自动识别"></textarea>
+        <div id="gv-scanresult" style="min-height:16px;margin-top:6px;font-size:11px;color:var(--gv-fg2)"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:4px">
+          <button class="gv-addbtn" id="gv-addscan"><i data-lucide="search"></i>扫描</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- import log modal -->
+    <div class="gv-mask" id="gv-impmask">
+      <div class="gv-modal" style="width:80%;height:80%;display:flex;flex-direction:column;padding:10px;resize:both;overflow:hidden;min-width:520px;min-height:300px">
+        <div class="gv-mhead"><span class="gv-t">导入历史</span>
+          <span style="flex:1"></span>
+          <button class="gv-addbtn" id="gv-impcopy"><i data-lucide="copy"></i>复制选中链接</button>
+          <button class="gv-addbtn" id="gv-impclear" style="margin-left:6px"><i data-lucide="trash-2"></i>清空记录</button>
+          <button class="gv-act" id="gv-impclose" style="border:none;background:transparent;color:var(--gv-fg2);cursor:pointer;display:flex;margin-left:6px"><i data-lucide="x"></i></button>
+        </div>
+        <div id="gv-implist" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--gv-line);border-radius:6px;background:var(--gv-bg)"></div>
+        <div style="font-size:11px;color:var(--gv-fg2);margin-top:6px">点击选中，Ctrl 多选，Shift 范围选；右键行可复制链接地址</div>
+      </div>
+    </div>
+
+    <!-- rename modal -->
+    <div class="gv-mask" id="gv-renmask">
+      <div class="gv-modal" style="width:min(480px,92%)">
+        <div class="gv-mhead" style="border:none;padding:0 0 8px"><span class="gv-t">重命名</span>
+          <button id="gv-renclose" style="border:none;background:transparent;color:var(--gv-fg2);cursor:pointer;display:flex"><i data-lucide="x"></i></button>
+        </div>
+        <input id="gv-renname" style="width:100%;border:1px solid var(--gv-accent);border-radius:6px;padding:6px 9px;font:inherit;background:var(--gv-bg);color:var(--gv-fg);outline:none">
+        <div id="gv-renhint" style="font-size:11px;color:var(--gv-fg2);margin-top:6px">保存后文件夹会同步改成这个名字（含你保留的序号后缀）；正在下载的条目在停止/完成后自动归位。</div>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px">
+          <button class="gv-addbtn" id="gv-renok">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- about modal -->
+    <div class="gv-mask" id="gv-aboutmask">
+      <div class="gv-modal" style="width:min(480px,92%)">
+        <div class="gv-mhead" style="border:none;padding:0 0 8px"><span class="gv-t">关于</span>
+          <button id="gv-aboutclose" style="border:none;background:transparent;color:var(--gv-fg2);cursor:pointer;display:flex"><i data-lucide="x"></i></button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="gv-addbtn" id="gv-aboutver"><i data-lucide="tag"></i>版本信息</button>
+          <button class="gv-addbtn" id="gv-abouthosts"><i data-lucide="server"></i>支持的图床</button>
+        </div>
+        <div id="gv-aboutbody" style="margin-top:10px;font-size:12px;color:var(--gv-fg);white-space:pre-wrap;max-height:300px;overflow:auto;display:none"></div>
+      </div>
+    </div>
+
+    <!-- close-while-downloading confirm -->
+    <div class="gv-mask" id="gv-closemask">
+      <div class="gv-modal" style="width:min(420px,90%);padding:14px">
+        <div class="gv-mhead" style="border:none;padding:0 0 8px"><span class="gv-t">还有任务在下载</span></div>
+        <div style="font-size:12px;color:var(--gv-fg);margin-bottom:12px">还有任务正在下载，直接退出会中断它们。要怎么处理？</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="gv-addbtn" id="gv-closemin"><i data-lucide="minimize-2"></i>最小化到任务栏继续</button>
+          <button class="gv-addbtn" id="gv-closequit"><i data-lucide="log-out"></i>强制退出</button>
+          <button class="gv-addbtn" id="gv-closecancel">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- host manager modal -->
+    <div class="gv-hostmask" id="gv-hostmask">
+      <div class="gv-hostwin">
+        <div class="gv-hosthead">
+          <i data-lucide="server"></i><span>规则管理</span>
+          <span class="gv-sp" id="gv-hostdirtext">规则以 JSON 存放，保存即热加载；同一图床可保存多条规则，勾选启用</span>
+          <button class="gv-addbtn" id="gv-hostreload" title="重新读取规则目录（手工放入/修改 JSON 后点它）"><i data-lucide="refresh-cw"></i>重载</button>
+          <button class="gv-addbtn" id="gv-hostlint" title="静态检查所有规则的语法/变量/步骤（不联网）"><i data-lucide="stethoscope"></i>体检</button>
+          <button class="gv-addbtn" id="gv-hostdir" title="选择规则 JSON 的存放目录（会记住，下次启动沿用）"><i data-lucide="folder"></i>规则目录</button>
+          <button class="gv-addbtn" id="gv-hostdireset" title="回到程序默认的 data/hosts">默认</button>
+          <button class="gv-addbtn" id="gv-hostclose" style="padding:3px 8px"><i data-lucide="x"></i></button>
+        </div>
+        <div class="gv-hostsplit">
+          <div class="gv-hostlist">
+            <div class="gv-htools">
+              <input id="gv-hfilter" placeholder="搜索 名称 / 域名 / 备注…">
+              <select id="gv-hftype" title="按来源筛选">
+                <option value="all">全部来源</option>
+                <option value="builtin">内置</option>
+                <option value="imported">原版导入</option>
+                <option value="custom">自定义</option>
+              </select>
+              <label class="gv-hchk" title="只看勾选状态的规则"><input type="checkbox" id="gv-hfon" style="width:12px;height:12px">只看启用</label>
+              <span class="gv-sp"></span>
+              <span class="gv-hcount" id="gv-hcount"></span>
+            </div>
+            <div class="gv-hbulk" id="gv-hbulk">
+              <span>已选 <b id="gv-hselcount">0</b> 条</span>
+              <button class="gv-addbtn" id="gv-hselon">启用</button>
+              <button class="gv-addbtn" id="gv-hseloff">停用</button>
+              <span class="gv-sp"></span>
+              <button class="gv-addbtn" id="gv-hselnone">取消选择</button>
+              <button class="gv-addbtn" id="gv-hseldel" style="color:var(--gv-err)">删除选中</button>
+            </div>
+            <div class="gv-htable" id="gv-htable" title="点击=选中并编辑；Ctrl+点击=增减；Shift+点击=区间选；Ctrl+A=全选当前列表；Esc=取消选择"></div>
+          </div>
+          <div class="gv-hedit">
+            <div class="gv-hform">
+              <div class="gv-frow"><label>名称</label><input class="gv-in" id="gv-hname"></div>
+              <div class="gv-frow"><label>匹配域名</label><input class="gv-in" id="gv-hdom" placeholder="逗号分隔，如 imgbox.com, www.imgbox.com"></div>
+              <div class="gv-frow"><label>备注</label><input class="gv-in" id="gv-hnote" placeholder="可选"></div>
+              <div class="gv-frow"><label>解析步骤</label>
+                <button class="gv-addbtn" id="gv-stepadd" style="padding:3px 9px"><i data-lucide="plus"></i>添加步骤</button></div>
+              <div class="gv-steps" id="gv-steps"></div>
+            </div>
+            <div class="gv-testbar">
+              <span style="font-size:11px;color:var(--gv-fg2)">测试：</span>
+              <input id="gv-testurl" placeholder="粘贴一个真实的图片页地址">
+              <input id="gv-testthumb" placeholder="缩略图链接（可选；{thumb_url} 规则必填）">
+              <button class="gv-addbtn" id="gv-testrun" style="padding:3px 12px"><i data-lucide="play"></i>测试</button>
+            </div>
+            <div class="gv-testout" id="gv-testout">等待测试…</div>
+          </div>
+        </div>
+        <div class="gv-hfoot">
+          <button class="gv-addbtn" id="gv-hostnew"><i data-lucide="plus"></i>新建规则</button>
+          <button class="gv-addbtn" id="gv-hostimport"><i data-lucide="upload"></i>导入规则 (JSON)</button>
+          <button class="gv-addbtn" id="gv-hostexport"><i data-lucide="download"></i>导出当前规则</button>
+          <span class="gv-sp"></span>
+          <button class="gv-addbtn" id="gv-hostdelete" style="color:var(--gv-err)"><i data-lucide="trash-2"></i>删除规则</button>
+          <span style="flex:1"></span>
+          <button class="gv-addbtn" id="gv-hostsave"><i data-lucide="save"></i>保存并热加载</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- settings modal -->
+    <div class="gv-setmask" id="gv-setmask">
+      <div class="gv-setwin">
+        <div class="gv-setside">
+          <button class="on" data-spage="common">常规</button>
+          <button data-spage="download">下载</button>
+          <button data-spage="conn">论坛</button>
+          <button data-spage="ext">扩展</button>
+        </div>
+        <div class="gv-setmain">
+          <div class="gv-setbody">
+            <div class="gv-setpage on" data-spage="common">
+              <div class="gv-setgrp">文件处理</div>
+              <div class="gv-frow"><label>已存在图片</label>
+                <select class="gv-in" id="gv-s-existing"><option value="skip">跳过（推荐，用于续传）</option><option value="overwrite">覆盖</option><option value="rename">重命名保留</option></select></div>
+              <div class="gv-frow"><label>目录组织</label>
+                <select class="gv-in" id="gv-s-perfolder"><option value="1">每帖一个文件夹（多图册楼层建子文件夹）</option><option value="0">全部平铺</option></select></div>
+              <div class="gv-frow"><label>按论坛板块分类</label><input type="checkbox" id="gv-s-forumsort"></div>
+              <div class="gv-setgrp">预览</div>
+              <div class="gv-frow"><label>显示图片预览栏</label><input type="checkbox" id="gv-s-preview"></div>
+              <div class="gv-setgrp">其他</div>
+              <div class="gv-frow"><label>下载中关窗前先确认</label><input type="checkbox" id="gv-s-tray"><span class="gv-hint">勾选后：还有任务在下载时，点 × 或 文件 → 退出 都会先弹确认框（收进任务栏 / 强制退出 / 取消）；取消勾选则直接退出、不提示</span></div>
+              <div class="gv-frow"><label>任务完成提示音</label><input type="checkbox" id="gv-s-sound"><button class="gv-addbtn" id="gv-s-soundtest">试听</button><span class="gv-hint">队列里正在下载的任务全部下完时响一声（点“试听”可立即测试）</span></div>
+              <div class="gv-frow"><label>任务完成后自动关机</label><input type="checkbox" id="gv-s-shutdown"><span class="gv-hint">所有任务完成后倒计时 60 秒关机；命令行执行 shutdown /a 可取消</span></div>
+            </div>
+            <div class="gv-setpage" data-spage="download">
+              <div class="gv-frow"><label>下载目录</label><input class="gv-in" id="gv-s-dlndir"><button class="gv-addbtn" id="gv-s-browse">浏览</button></div>
+              <div class="gv-frow"><label>临时目录</label><input class="gv-in" id="gv-s-tempdir" placeholder="留空 = 直接下到目标文件夹"><button class="gv-addbtn" id="gv-s-tempbrowse">浏览</button><span class="gv-hint">下载中的 .tmp 文件放这里；和下载目录不在同一个盘时会多一次复制</span></div>
+              <div class="gv-setgrp">并发</div>
+              <div class="gv-frow"><label>同时下载的条目数</label><input class="gv-in" id="gv-s-posts" type="number" min="1"><span class="gv-hint">多个收藏项同时下载的上限</span></div>
+              <div class="gv-frow"><label>每图床并发连接</label><input class="gv-in" id="gv-s-hostconc" type="number" min="1"></div>
+              <div class="gv-frow"><label>重试次数</label><input class="gv-in" id="gv-s-retries" type="number" min="1"></div>
+              <div class="gv-frow"><label>连接超时 (秒)</label><input class="gv-in" id="gv-s-timeout" type="number" min="1"></div>
+              <div class="gv-frow"><label>抓取原始文件名</label><input type="checkbox" id="gv-s-origname"><span class="gv-hint">开启：优先使用原始文件名（含帖内顺序）；抓取不到的图才退化为 001.jpg 编号</span></div>
+              <div class="gv-frow"><label>自动获取楼层标题</label><input type="checkbox" id="gv-s-floor"><span class="gv-hint">用于多图册楼层的文件夹命名</span></div>
+            </div>
+            <div class="gv-setpage" data-spage="ext">
+              <div class="gv-setgrp">浏览器扩展桥接</div>
+              <div class="gv-frow"><label>启用</label><input type="checkbox" id="gv-s-exton">
+                <span class="gv-hint">供「规则录制器」扩展把生成的规则保存进本程序</span></div>
+              <div class="gv-frow"><label>端口</label>
+                <input class="gv-in" id="gv-s-extport" type="number" min="0" max="65535">
+                <span class="gv-hint">默认 47821；填 0 表示自动顺延，被占用时实际端口见下方状态</span></div>
+              <div class="gv-frow"><label>当前状态</label>
+                <span id="gv-extstate" style="font-size:11px;color:var(--gv-fg2)">读取中…</span>
+                <button class="gv-addbtn" id="gv-extcheck">刷新</button></div>
+              <div class="gv-hint" style="margin-top:10px;line-height:1.7">
+                这个服务只绑定 <b>127.0.0.1</b>（本机回环地址），外网无法访问，也不上传任何数据。<br>
+                它对外提供三个接口：<code>/api/ping</code>（在线状态）、
+                <code>/api/host/test</code>（用规则试解析一张图并回报真实分辨率）、
+                <code>/api/host/save</code>（把规则写入规则目录并热加载）。<br>
+                关闭后浏览器扩展无法连接本程序，但下载、解析等功能不受影响。
+              </div>
+            </div>
+            <div class="gv-setpage" data-spage="conn">
+              <div class="gv-frow"><label>论坛域名</label><input class="gv-in" id="gv-s-forum"></div>
+              <div class="gv-frow"><label>镜像域名</label><input class="gv-in" id="gv-s-mirrors" placeholder="逗号分隔，如 m1.example.com, m2.example.com"><span class="gv-hint">主域名连不上时依次尝试，用于登录/感谢/帖子链接；接口（vr.php）不受影响</span></div>
+              <div class="gv-frow"><label>请求限速 (次/秒)</label><input class="gv-in" id="gv-s-rate" type="number" min="1"><span class="gv-hint">对论坛 API 的请求频率，过高易触发封禁</span></div>
+              <div class="gv-frow"><label>代理地址</label><input class="gv-in" id="gv-s-proxy" placeholder="host:port，如 127.0.0.1:10809"><span class="gv-hint">论坛或图床被墙时填写本地代理端口</span></div>
+              <div class="gv-frow"><label>启用代理</label><input type="checkbox" id="gv-s-proxyuse"><span class="gv-hint">勾选后使用上面的地址；不勾则自动检测系统代理。新开始的下载生效（菜单栏也有同一个开关）</span></div>
+              <div class="gv-setgrp">账号</div>
+              <div class="gv-frow"><label>下载后自动感谢楼主</label><input type="checkbox" id="gv-s-thank"><span class="gv-hint">需已登录；同一帖子只感谢一次（失败会写日志）</span></div>
+              <div class="gv-frow"><label>用户名</label><input class="gv-in" id="gv-s-user" placeholder="论坛用户名"></div>
+              <div class="gv-frow"><label>密码</label><input class="gv-in" id="gv-s-pass" type="password" placeholder="论坛密码"><span class="gv-hint">明文保存在本机数据库；只用下面“网页登录”时可以不填</span></div>
+              <div class="gv-frow"><label>启动时自动登录</label><input type="checkbox" id="gv-s-autologin"></div>
+              <div class="gv-frow"><label>立即登录</label><button class="gv-addbtn" id="gv-s-login">登录</button><button class="gv-addbtn" id="gv-s-logout" title="清除本程序的论坛登录状态">注销</button><span id="gv-loginstate" style="font-size:11px;color:var(--gv-fg2)">未登录</span></div>
+              <div class="gv-frow"><label>网页登录（备用）</label><button class="gv-addbtn" id="gv-s-weblogin">打开网页登录</button><span class="gv-hint">登录时请勾选 Remember Me，否则关闭窗口后会掉线</span></div>
+            </div>
+          </div>
+          <div class="gv-setfoot">
+            <button class="gv-addbtn" id="gv-setcancel">取消</button>
+            <button class="gv-addbtn" id="gv-setok">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- floor picker modal -->
+    <div class="gv-mask" id="gv-modal">
+      <div class="gv-modal gv-wide">
+        <div class="gv-mhead">
+          <span class="gv-t" id="gv-fmtitle">选择楼层</span>
+          <span style="font-size:11px;color:var(--gv-fg2)">共 <b id="gv-totalf">0</b> 层 · 有图 <b id="gv-totalp">0</b> 层</span>
+          <button id="gv-mclose" class="gv-addbtn" style="padding:2px 6px"><i data-lucide="x"></i></button>
+        </div>
+        <div class="gv-selbar">
+          <span style="font-size:11px;color:var(--gv-fg2)">跳转</span>
+          <input class="gv-jump" id="gv-jump" type="number" min="1" placeholder="楼层号">
+          <span style="font-size:11px;color:var(--gv-fg2)">范围勾选</span>
+          <input class="gv-jump" id="gv-rangefrom" type="number" placeholder="从">
+          <span style="font-size:11px;color:var(--gv-fg2)">~</span>
+          <input class="gv-jump" id="gv-rangeto" type="number" placeholder="到">
+          <button class="gv-addbtn" id="gv-rangeok" style="padding:3px 9px">勾选</button>
+          <button class="gv-addbtn" id="gv-all" style="padding:3px 9px">全选有图</button>
+          <button class="gv-addbtn" id="gv-inv" style="padding:3px 9px">反选</button>
+          <button class="gv-addbtn" id="gv-none" style="padding:3px 9px">清除</button>
+        </div>
+        <div class="gv-fmid">
+          <div class="gv-flist" id="gv-flist"></div>
+          <div class="gv-fprev">
+            <div class="gv-imgbox" id="gv-fpimg" style="flex:1">
+              <i data-lucide="image" style="width:26px;height:26px;opacity:.7" id="gv-fpph"></i>
+              <span class="gv-cap2" id="gv-fpcap" style="display:none"></span>
+            </div>
+            <div class="gv-rmeta" id="gv-fpmeta">悬停或勾选楼层查看缩略图</div>
+          </div>
+        </div>
+        <div class="gv-mfoot" style="border-top:1px solid var(--gv-line);padding:8px 12px">
+          <span class="gv-note">已选 <b id="gv-selcount" style="color:var(--gv-fg)">0</b> 层 / <b id="gv-selimgs" style="color:var(--gv-fg)">0</b> 图 <span style="opacity:.7">（千层列表采用虚拟渲染，滚动流畅）</span></span>
+          <span style="flex:1"></span>
+          <span id="gv-fload" style="font-size:11px;color:var(--gv-fg2)">已加载 0 层…</span>
+          <button class="gv-addbtn" id="gv-fmore" style="padding:3px 9px;display:none">加载更多</button>
+          <button class="gv-addbtn" id="gv-fall" style="padding:3px 9px;display:none">加载全部</button>
+          <button class="gv-addbtn" id="gv-fclear" style="padding:3px 9px" title="删除已缓存的楼层列表，下次打开重新抓取">清除缓存</button>
+          <label style="font-size:12px;color:var(--gv-fg);display:inline-flex;align-items:center;gap:6px;margin-right:6px;cursor:pointer;padding:4px 8px;border:1px solid var(--gv-line);border-radius:5px" title="勾选后，选中的楼层直接用楼层名称命名条目和文件夹（不加楼层号、不建子目录）。适合只下载其中一层的情况"><input type="checkbox" id="gv-fusethread" style="width:16px;height:16px;cursor:pointer">直接使用主页标题</label>
+          <button class="gv-addbtn" id="gv-fcancel">取消</button>
+          <button class="gv-addbtn" id="gv-fok">确定下载</button>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="gv-menu" id="gv-pictx" style="min-width:170px">
+      <button data-act="copy-page"><i data-lucide="clipboard-copy"></i>复制页面链接</button>
+      <button data-act="copy-direct"><i data-lucide="clipboard-copy"></i>复制图片直链</button>
+      <button data-act="open-page"><i data-lucide="external-link"></i>打开页面链接</button>
+      <button data-act="open-direct"><i data-lucide="external-link"></i>打开图片直链</button>
+    </div>
+    <div class="gv-menu" id="gv-flctx" style="min-width:170px">
+      <button data-act="open-floor"><i data-lucide="external-link"></i>打开楼层链接</button>
+      <button data-act="copy-floor"><i data-lucide="clipboard-copy"></i>复制楼层链接</button>
+      <button data-act="copy-name"><i data-lucide="type"></i>复制名称</button>
+    </div>
+    <div class="gv-menu" id="gv-ctx">
+      <button data-act="dl"><i data-lucide="play"></i>开始下载</button>
+      <button data-act="pause"><i data-lucide="square"></i>暂停</button>
+      <button data-act="retry"><i data-lucide="rotate-cw"></i>重试失败项</button>
+      <button data-act="cleancache"><i data-lucide="eraser"></i>清除解析缓存</button>
+      <div class="gv-msep"></div>
+      <button data-act="detail"><i data-lucide="list-tree"></i>查看楼层 / 选图</button>
+      <button data-act="rename"><i data-lucide="pencil"></i>重命名</button>
+      <button data-act="move"><i data-lucide="folder-input"></i>更改下载目录</button>
+      <button data-act="folder"><i data-lucide="folder-open"></i>打开文件夹</button>
+      <button data-act="open"><i data-lucide="external-link"></i>在浏览器打开</button>
+      <div class="gv-msep"></div>
+      <div class="gv-mi">
+        <button data-act="copy"><i data-lucide="copy"></i>复制<span class="gv-arrow"><i data-lucide="chevron-right"></i></span></button>
+        <div class="gv-sub">
+          <button data-act="copy-link"><i data-lucide="link"></i>复制条目链接</button>
+          <button data-act="copy-path"><i data-lucide="folder"></i>复制本地路径</button>
+          <button data-act="copy-title"><i data-lucide="type"></i>复制标题</button>
+        </div>
+      </div>
+      <div class="gv-mi">
+        <button data-act="mark"><i data-lucide="highlighter"></i>标记颜色<span class="gv-arrow"><i data-lucide="chevron-right"></i></span></button>
+        <div class="gv-sub">
+          <button data-act="mark-red"><span class="gv-mk" style="background:#e5484d"></span>红色</button>
+          <button data-act="mark-orange"><span class="gv-mk" style="background:#f76b15"></span>橙色</button>
+          <button data-act="mark-yellow"><span class="gv-mk" style="background:#d6a521"></span>黄色</button>
+          <button data-act="mark-green"><span class="gv-mk" style="background:#30a46c"></span>绿色</button>
+          <button data-act="mark-blue"><span class="gv-mk" style="background:#3e8ae0"></span>蓝色</button>
+          <button data-act="mark-purple"><span class="gv-mk" style="background:#8e6ad6"></span>紫色</button>
+          <button data-act="mark-none"><i data-lucide="x"></i>清除标记</button>
+        </div>
+      </div>
+      <button class="danger" id="gv-ctxdel" data-act="del"><i data-lucide="trash-2"></i>删除主题</button>
+      <div class="gv-mi">
+        <button data-act="clear"><i data-lucide="eraser"></i>清除<span class="gv-arrow"><i data-lucide="chevron-right"></i></span></button>
+        <div class="gv-sub">
+          <button data-act="clear-done"><i data-lucide="check-check"></i>清除已完成</button>
+          <button data-act="clear-err"><i data-lucide="x-circle"></i>清除失败</button>
+          <button class="danger" data-act="clear-all"><i data-lucide="trash-2"></i>清除全部</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- fullscreen image lightbox: click preview to open, wheel zooms at the
+         cursor, drag pans, double-click toggles fit/1x, Esc/background closes -->
+    <div id="gv-lightbox">
+      <img id="gv-lbimg" draggable="false">
+    </div>
+
+    <!-- 人机验证提示条：某些图床（Cloudflare）会先给“你是人吗”页面，
+         程序点不进去，只能请用户在弹出的验证窗口里手动过一次 -->
+    <div class="gv-cfbar" id="gv-cfbar">
+      <div class="gv-cftitle"><i data-lucide="shield-alert"></i><span id="gv-cfhost">—</span> 需要人机验证</div>
+      <div class="gv-cfhint">该图床要求确认真人身份才能继续。点“打开验证窗口”，在里面点完确认后关闭窗口，之前失败的图片会自动重新下载。</div>
+      <div class="gv-cfbtns">
+        <button id="gv-cfclose">稍后</button>
+        <button id="gv-cfopen" class="gv-cfgo">打开验证窗口</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="gv-toasts"></div>
+<script src="lucide.min.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js?v=55"></script>
+</body>
+</html>
