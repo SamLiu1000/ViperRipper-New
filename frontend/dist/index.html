@@ -142,6 +142,8 @@
     width: 18px; height: 18px; border-radius: 50%; border: none; cursor: pointer;
     display: flex; align-items: center; justify-content: center; padding: 0;
     background: #d64541; color: #fff;
+    /* 和行内单元格同级，必须压在单元格/底部信息条之上，否则会被偶发盖住 */
+    z-index: 6; pointer-events: auto;
   }
   #gv-app .gv-thread-close:hover { background: #b93832; }
   #gv-app .gv-thread-close svg { width: 12px; height: 12px; }

@@ -3,7 +3,7 @@
   "domains": [
     "imagenpic.com"
   ],
-  "note": "由原版 ViperRipper (2018) hosts.xml 转换；imageAction=NEED_NOTHING；未经实机验证，下载异常时在规则列表里关掉即可",
+  "note": "2018",
   "referer": "https://imagenpic.com/",
   "enabled": true,
   "steps": [

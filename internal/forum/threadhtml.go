@@ -339,11 +339,26 @@ func nextPageURL(current, page string) string {
 		return ""
 	}
 	if !strings.HasPrefix(href, "/") {
-		i := strings.LastIndex(base.Path, "/")
-		if i < 0 {
-			return ""
+		// vBulletin 的 rel="next" 是「根相对」但省略了开头的 /，例如
+		// threads/123-x/page2。以前一律按当前页目录解析，于是每翻一页就
+		// 多叠一段 threads/123-x/，到第 20 多页地址彻底失效、翻页静默停止
+		// （长主题只能看到前面两百多层）。这里识别出根相对链接后按站点根解析。
+		first := strings.SplitN(strings.TrimPrefix(base.Path, "/"), "/", 2)[0]
+		rootRel := strings.HasPrefix(href, "threads/") ||
+			strings.HasPrefix(href, "showthread") ||
+			strings.HasPrefix(href, "forumdisplay") ||
+			(first != "" && strings.HasPrefix(href, first+"/"))
+		if rootRel {
+			base.Path = "/"
+			base.RawQuery = ""
+			base.Fragment = ""
+		} else {
+			i := strings.LastIndex(base.Path, "/")
+			if i < 0 {
+				return ""
+			}
+			base.Path = base.Path[:i+1]
 		}
-		base.Path = base.Path[:i+1]
 	}
 	ref, err := url.Parse(href)
 	if err != nil {

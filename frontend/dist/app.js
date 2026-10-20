@@ -184,6 +184,23 @@
     return p.total > 0 ? (p.done + p.failed) / p.total : -1;
   }
 
+  // 管理视图的退出按钮：单独建一个，渲染完还会兜底检查（见 finishDlist），
+  // 免得某次 DOM 操作把它挤掉后用户退不出去。
+  function threadCloseBtn() {
+    var b = document.createElement('button');
+    b.className = 'gv-thread-close';
+    b.title = '退出主题管理';
+    b.innerHTML = '<i data-lucide="x"></i>';
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      state.viewThread = 0;
+      state.sel = [];
+      // back to the exact spot of the normal list we left
+      renderPosts(dlistScrollMem);
+    });
+    return b;
+  }
+
   function threadRow(t, manage) {
     var m = threadMeta(t);
     var row = document.createElement('div');
@@ -223,19 +240,11 @@
       '<span class="gv-state' + (isDl ? ' gv-dl' : '') + '"><i style="width:' + pct + '%"></i><span>' + esc(stTxt) + '</span></span>' +
       '<span class="gv-cnt">' + esc((t.createdAt || '').slice(0, 16)) + '</span>' +
       '<span class="gv-cnt">—</span>';
-    var act = document.createElement('button');
+    var act;
     if (manage) {
-      act.className = 'gv-thread-close';
-      act.title = '退出主题管理';
-      act.innerHTML = '<i data-lucide="x"></i>';
-      act.addEventListener('click', function (e) {
-        e.stopPropagation();
-        state.viewThread = 0;
-        state.sel = [];
-        // back to the exact spot of the normal list we left
-        renderPosts(dlistScrollMem);
-      });
+      act = threadCloseBtn();
     } else {
+      act = document.createElement('button');
       act.className = 'gv-act more';
       act.title = '菜单';
       act.innerHTML = '<i data-lucide="more-horizontal"></i>';
@@ -598,6 +607,12 @@
   }
 
   function finishDlist() {
+    // 兜底：管理视图里那个钉住的主题行必须能退出。万一按钮被哪次 DOM 操作
+    // （列宽重排、行重建…）弄丢了，这里补回来。
+    if (state.viewThread > 0) {
+      var pinned = $('gv-dlist').querySelector('.gv-row-thread.gv-pinned');
+      if (pinned && !pinned.querySelector('.gv-thread-close')) pinned.appendChild(threadCloseBtn());
+    }
     icons();
     // header sort indicators
     var hrow = $('gv-dlist').querySelector('.gv-hrow');
@@ -1559,7 +1574,11 @@
     state.floors = [];
     state.floorTotal = 0;
     var ut = $('gv-fusethread');
-    if (ut) ut.checked = false;
+    // 主题总楼层数 ≤3 时默认勾上「直接使用主页标题」：这种小主题常常是同一套图
+    // 分几层发，默认不按层建子目录，避免 主题/6F、主题/7F 里各存一份重复内容。
+    // 大于 3 层保持不勾（楼层通常是不同内容）。用户手动改了就以手动为准，不记忆。
+    var totalFloors = (t && (t.postCount || 0)) || 0;
+    if (ut) ut.checked = totalFloors > 0 && totalFloors <= 3;
     state.floorPreselect = preselectPostId || 0;
     $('gv-fmtitle').textContent = (t.title || '主题 #' + t.threadId) + ' — 选择楼层';
     $('gv-flist').innerHTML = '<div style="padding:20px;color:var(--gv-fg2)">正在获取楼层…</div>';
@@ -2750,6 +2769,10 @@
     // 编辑模式的勾选框绝对定位、不占 grid 列：列宽/排序系统必须无视它，
     // 否则 children 索引偏移会把 order/宽度套错列
     function gridCells(container) {
+      // 注意：这里只能排除编辑模式的勾选框。退出按钮虽然也是绝对定位，
+      // 但表头有一个 .gv-ph 填充列，行内子元素数量必须和表头对齐（都是 7），
+      // 否则下面用列索引取 cells[ci] 会越界，apply() 中途抛异常、列宽只应用一半，
+      // 表现为“楼层列表排版错乱”。
       return [...container.children].filter(function (el) {
         return !(el.classList && el.classList.contains('gv-ckbox'));
       });
@@ -2766,7 +2789,10 @@
       listEl.querySelectorAll(rowSel).forEach(function (r) {
         r.style.gridTemplateColumns = hrow.style.gridTemplateColumns;
         var cells = gridCells(r);
-        order.forEach(function (ci, pos) { cells[ci].style.order = pos; });
+        order.forEach(function (ci, pos) {
+          if (!cells[ci]) return; // 行内元素比表头少时不要越界
+          cells[ci].style.order = pos;
+        });
       });
     }
     function save() {

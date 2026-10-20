@@ -320,6 +320,7 @@ func (a *App) pinRenamedDirs() {
 		return
 	}
 	n := 0
+	threadTitles := map[int64]string{} // 每个主题只查一次
 	for i := range posts {
 		p := &posts[i]
 		if p.CustomName != "" || p.Dir == "" {
@@ -331,6 +332,19 @@ func (a *App) pinRenamedDirs() {
 		want := pipeline.DirNameFromTitle(p.Title)
 		if want == "" || !pipeline.MatchesTitleName(filepath.Base(p.Dir), p.Title) {
 			continue
+		}
+		// 文件夹名恰好是主题名时，这个目录其实是「主题文件夹」本身（勾了
+		// “直接使用主页标题”的条目就是这样），不是用户给条目起的名字。
+		// 以前这里照记不误，之后再拼路径就成了 主题\主题 两层。
+		if base := filepath.Base(p.Dir); p.ForumThreadID != 0 {
+			tt, ok := threadTitles[p.ForumThreadID]
+			if !ok {
+				tt, _ = a.Store.ThreadTitleAndPostCount(p.ForumThreadID)
+				threadTitles[p.ForumThreadID] = tt
+			}
+			if tt != "" && pipeline.SanitizeDirName(tt) == pipeline.SanitizeDirName(base) {
+				continue
+			}
 		}
 		if a.Store.SetPostDirName(p.ID, p.Title) == nil {
 			n++
@@ -1214,12 +1228,7 @@ func (a *App) floorJobFor(rowID, threadID int64) *floorTextJob {
 			}
 		}
 		if meta.NextURL != "" {
-			// 老版本 bug 把相对路径越拼越长（threads/threads/...），载入时修正
-			if strings.Contains(meta.NextURL, "threads/threads/") {
-				j.nextURL = a.Forum.ThreadPageURL(threadID)
-			} else {
-				j.nextURL = meta.NextURL
-			}
+			j.nextURL = a.repairFloorNextURL(threadID, meta.NextURL)
 		}
 		j.done = meta.Done
 	}
@@ -1271,6 +1280,30 @@ func (a *App) floorSummaryLocked(j *floorTextJob) []map[string]any {
 			"thumb":  thumb,
 			"url":    a.Forum.PostURL(j.threadID, f.ID),
 		})
+	}
+	return out
+}
+
+// repairFloorNextURL 修掉老版本把「下一页」链接越拼越长的地址。
+// vBulletin 的 rel=next 是根相对但省略了开头的 /，旧代码按当前页目录解析，
+// 于是每翻一页多叠一段 threads/<id>/，变成 .../threads/x/threads/x/page18。
+// 这里取最后一段 threads/<id>/pageN，把页码保住，不用从第 1 页重抓。
+func (a *App) repairFloorNextURL(threadID int64, raw string) string {
+	if !strings.Contains(raw, "threads/threads/") {
+		return raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return a.Forum.ThreadPageURL(threadID)
+	}
+	trimmed := strings.TrimPrefix(u.Path, "/")
+	i := strings.LastIndex(trimmed, "threads/")
+	if i < 0 {
+		return a.Forum.ThreadPageURL(threadID)
+	}
+	out := u.Scheme + "://" + u.Host + "/" + trimmed[i:]
+	if u.RawQuery != "" {
+		out += "?" + u.RawQuery
 	}
 	return out
 }
@@ -1436,11 +1469,14 @@ func (a *App) floorWorker(rowID int64, j *floorTextJob) {
 
 		page, next, err := a.Forum.FetchPage(ctx, pageURL)
 		if err != nil {
+			// 不要标记 done：限速/超时/临时 5xx 之后用户点「加载更多」还能接着抓。
+			// 以前这里直接 done=true，遇到一次失败长主题就永久停在第 N 页。
 			j.mu.Lock()
-			j.done = true
 			j.running = false
+			fetched := j.fetched
 			j.mu.Unlock()
-			wruntime.EventsEmit(a.ctx, "floors:page", map[string]any{"rowID": rowID, "error": err.Error(), "done": true})
+			a.Store.AddLog("WARN", fmt.Sprintf("楼层抓取中断（主题行 #%d，已抓 %d 页）：%v", rowID, fetched, err))
+			wruntime.EventsEmit(a.ctx, "floors:page", map[string]any{"rowID": rowID, "error": err.Error(), "done": false})
 			return
 		}
 		parsed := a.Forum.ParseFloorPage(page)

@@ -194,6 +194,11 @@ func (e *Engine) customDir(post *store.Post, name string) string {
 	if thread == "" {
 		return filepath.Join(base, name)
 	}
+	// 自定义名和主题名一样时没必要再套一层（勾了“直接使用主页标题”就会这样），
+	// 否则会拼出 主题\主题 的重复目录。
+	if sanitizeDirName(name) == thread {
+		return filepath.Join(base, thread)
+	}
 	return filepath.Join(base, thread, name)
 }
 
@@ -225,6 +230,54 @@ func (e *Engine) derivedDirs(post *store.Post) (flat, grouped string) {
 //
 // 只在“目标目录还没有图片、来源目录有图片”时才搬，搬完立刻落库 post.dir，
 // 所以下一次调用直接命中、不会反复来回移动。
+// isSameNameDescendant 判断 cur 是否是 want 下面"同名重复"的目录
+// （want/主题/主题 → cur）。这种情况是程序自己以前拼出来的，不是用户手工指定的位置。
+func isSameNameDescendant(cur, want string) bool {
+	rel, err := filepath.Rel(want, cur)
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return false
+	}
+	base := filepath.Base(want)
+	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
+		if !strings.EqualFold(part, base) {
+			return false
+		}
+	}
+	return true
+}
+
+// sameNameNested 判断 dir 里是否只套着一个同名子目录（历史遗留的 主题\主题 结构），
+// 是的话返回那个子目录的路径，否则返回空串。
+func sameNameNested(dir string) string {
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) != 1 || !entries[0].IsDir() {
+		return ""
+	}
+	if !strings.EqualFold(entries[0].Name(), filepath.Base(dir)) {
+		return ""
+	}
+	return filepath.Join(dir, entries[0].Name())
+}
+
+// mergeDirUp 把 from 里的内容提到 to 里，然后删掉空的 from。同名的文件以 to 里已有的为准。
+func mergeDirUp(from, to string) error {
+	entries, err := os.ReadDir(from)
+	if err != nil {
+		return err
+	}
+	for _, en := range entries {
+		src := filepath.Join(from, en.Name())
+		dst := filepath.Join(to, en.Name())
+		if _, err := os.Stat(dst); err == nil {
+			continue
+		}
+		if err := os.Rename(src, dst); err != nil {
+			return err
+		}
+	}
+	return os.Remove(from)
+}
+
 func (e *Engine) EnsurePostDir(post *store.Post) string {
 	if post == nil {
 		return e.BaseDir
@@ -247,6 +300,18 @@ func (e *Engine) EnsurePostDir(post *store.Post) string {
 		case hasImageFile(want):
 			return want
 		case !isEmptyDir(want):
+			// 历史遗留的 主题\主题：外层只套着一个同名子目录，图片都在里层。
+			// 这时把里层内容提上来、删掉空壳，目录就只剩一层了。
+			if inner := sameNameNested(want); inner != "" && hasImageFile(inner) {
+				if err := mergeDirUp(inner, want); err == nil {
+					if e.Store != nil && post.ID != 0 {
+						_ = e.Store.SetPostDir(post.ID, want)
+						post.Dir = want
+					}
+					return want
+				}
+				e.log("WARN", "整理重复目录失败：%s", relUnder(e.BaseDir, want))
+			}
 			e.log("WARN", "%s 已存在且含非图片文件，不自动搬动（保持原目录）", relUnder(e.BaseDir, want))
 			targetOK = false
 		default:
@@ -263,6 +328,11 @@ func (e *Engine) EnsurePostDir(post *store.Post) string {
 			curOurs = true
 			break
 		}
+	}
+	// 历史遗留的 主题\主题：这种路径不在候选里，但显然是程序自己拼出来的，
+	// 不该当成"用户手工指定的目录"而保留（否则删掉目录重新下载还会建两层）。
+	if !curOurs && isSameNameDescendant(cur, want) {
+		curOurs = true
 	}
 	for _, cand := range cands {
 		if !hasImageFile(cand) {
