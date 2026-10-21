@@ -769,6 +769,57 @@ func (s *Store) flush() {
 	tx.Commit()
 }
 
+// FirstDoneImageDir 返回该帖第一张已完成图片所在的目录（用于从图片旧路径
+// 反推帖子的实际下载位置），找不到已完成图片时 ok=false。
+func (s *Store) FirstDoneImageDir(postRowID int64) (dir string, ok bool) {
+	var fp string
+	err := s.db.QueryRow(`SELECT file_path FROM image
+		WHERE post_row_id=? AND state='done' AND file_path<>'' ORDER BY seq LIMIT 1`, postRowID).Scan(&fp)
+	if err != nil || fp == "" {
+		return "", false
+	}
+	return filepath.Dir(fp), true
+}
+
+// RebaseImagePaths 把一个帖子下指向失效位置（目录搬过家、数据从旧版导入）
+// 的已完成图片路径重写到当前帖子目录下。只按文件名重定位，磁盘上也真的
+// 找得到才改；找不到就保留原路径不动。返回修复条数。
+func (s *Store) RebaseImagePaths(postRowID int64, dir string) int {
+	rows, err := s.db.Query(`SELECT id, file_path FROM image
+		WHERE post_row_id=? AND state='done' AND file_path<>''`, postRowID)
+	if err != nil {
+		return 0
+	}
+	type fix struct {
+		id   int64
+		next string
+	}
+	var fixes []fix
+	for rows.Next() {
+		var id int64
+		var fp string
+		if rows.Scan(&id, &fp) != nil {
+			continue
+		}
+		if _, err := os.Stat(fp); err == nil {
+			continue // 原路径还好好的
+		}
+		cand := filepath.Join(dir, filepath.Base(fp))
+		if st, err := os.Stat(cand); err != nil || st.IsDir() {
+			continue // 新位置也找不到，不动
+		}
+		fixes = append(fixes, fix{id, cand})
+	}
+	rows.Close()
+	n := 0
+	for _, f := range fixes {
+		if _, err := s.db.Exec(`UPDATE image SET file_path=? WHERE id=?`, f.next, f.id); err == nil {
+			n++
+		}
+	}
+	return n
+}
+
 // ResetDownloading marks all downloading images/posts as pending/ready at startup.
 func (s *Store) ResetDownloading() {
 	s.db.Exec(`UPDATE image SET state='pending' WHERE state='downloading'`)

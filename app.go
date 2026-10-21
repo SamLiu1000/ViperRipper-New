@@ -70,6 +70,8 @@ type App struct {
 	// floorJobs 楼层选择器的分批抓取状态（threadRowID → *floorTextJob）：
 	// 楼层骨架与文本名共用一个逐页抓取通道，避免一次全量同步等待。
 	floorJobs sync.Map
+	// vrQ 论坛下载按钮（vr: 协议）的请求队列，串行消费，见 vrlink.go
+	vrQ chan string
 	// quitting 由菜单“退出”置位，避免被“最小化到托盘”拦住
 	quitting bool
 	// lastCloseAsk 上一次弹“还有任务在下载”的时间：确认框没能显示时，
@@ -257,6 +259,7 @@ func (a *App) initCore() {
 
 	a.pinRenamedDirs()
 	a.reconcileStaleDirs()
+	a.rebaseImagePaths()
 
 	t = time.Now()
 	st.ResetDownloading()
@@ -376,6 +379,65 @@ func (a *App) reconcileStaleDirs() {
 	}
 }
 
+// rebaseImagePaths 启动自检的最后一步：图片级的 file_path 存的是下载完成
+// 时的绝对路径，目录搬家（或从旧版 ViperRipper 导入数据）后会全部失效，
+// /local/ 端点 404，右侧预览大图和列表预览列就都加载不出来。reconcileStaleDirs
+// 只纠正了帖子级目录，这里把每个有效目录下按文件名能找回来的图片路径重写。
+func (a *App) rebaseImagePaths() {
+	posts, err := a.Store.ListPosts()
+	if err != nil {
+		return
+	}
+	n := 0
+	for i := range posts {
+		p := &posts[i]
+		if p.Dir == "" {
+			// dir 记录为空的条目（多为旧版数据导入）：从图片旧路径反推
+			n += a.rebaseOrphanPost(&posts[i])
+			continue
+		}
+		if st, err := os.Stat(p.Dir); err != nil || !st.IsDir() {
+			continue // 帖子目录本身都找不到，无从按名重定位
+		}
+		n += a.Store.RebaseImagePaths(p.ID, p.Dir)
+	}
+	if n > 0 {
+		a.Store.AddLog("INFO", fmt.Sprintf("启动自检：%d 张已完成图片的路径已重定位到当前下载目录", n))
+	}
+}
+
+// rebaseOrphanPost 修 dir 为空的条目：取它一张已完成图片的旧路径，拿
+// 「帖子文件夹名」（及其上级板块文件夹名）在当前下载根目录下找实际位置；
+// 找到就把整帖图片路径按前缀重写过去，并回填 post.dir。
+func (a *App) rebaseOrphanPost(p *store.Post) int {
+	oldDir, ok := a.Store.FirstDoneImageDir(p.ID)
+	if !ok || a.Pipe == nil {
+		return 0
+	}
+	base := strings.TrimSpace(a.Pipe.BaseDir)
+	if base == "" {
+		return 0
+	}
+	postFolder := filepath.Base(oldDir)
+	parent := filepath.Base(filepath.Dir(oldDir)) // 板块文件夹（SortByForum 布局）
+	cands := []string{
+		filepath.Join(base, postFolder),
+		filepath.Join(base, parent, postFolder),
+	}
+	for _, cand := range cands {
+		if st, err := os.Stat(cand); err != nil || !st.IsDir() {
+			continue
+		}
+		m, err := a.Store.RewriteImagePathPrefix(oldDir, cand)
+		if err != nil || m == 0 {
+			return 0
+		}
+		a.Store.SetPostDir(p.ID, cand)
+		return m
+	}
+	return 0
+}
+
 // startupMark appends a timestamped line to data/startup.log (startup
 // timing diagnostics) and mirrors it to the in-app Log page.
 func (a *App) startupMark(line string) {
@@ -391,6 +453,9 @@ func (a *App) startupMark(line string) {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.Hub.Start(ctx)
+	// 论坛下载按钮（vr: 协议）：管道先接上（启动瞬间的点击不丢），
+	// 注册协议与启动参数等核心就绪后再处理
+	a.startVRLink()
 	// 恢复上次的主窗口位置与尺寸（设置加载完成后套用；0 = 保持默认）
 	go func() {
 		<-a.ready

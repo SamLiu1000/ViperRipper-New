@@ -12,6 +12,7 @@ type Settings struct {
 	ExistingFiles  string `json:"existingFiles"` // skip | overwrite | rename
 	PerPostFolder  bool   `json:"perPostFolder"`
 	ShowPreview    bool   `json:"showPreview"`
+	PrevHead       bool   `json:"prevHead"` // 下载列表首列显示缩略图（行高加倍）
 	ConfirmOnClose bool   `json:"minimizeTray"`
 	SoundOnDone    bool   `json:"soundOnDone"`
 	ShutdownOnDone bool   `json:"shutdownOnDone"`
@@ -39,6 +40,9 @@ type Settings struct {
 	// 浏览器扩展桥接：只监听 127.0.0.1，供规则录制器保存规则用
 	ExtBridgeEnabled bool `json:"extBridgeEnabled"`
 	ExtBridgePort    int  `json:"extBridgePort"` // 0 = 自动（47821 起顺延）
+	// 论坛 vr: 按钮添加成功后的反馈（设置 → 扩展）
+	VRJumpOnAdd bool `json:"vrJumpOnAdd"` // 每次添加完都把主窗口提到最前
+	VRBeepOnAdd bool `json:"vrBeepOnAdd"` // 添加完播放提示音（与下载完成音相同）
 	// 主窗口位置与尺寸持久化；0 = 用程序默认
 	WinX int `json:"winX"`
 	WinY int `json:"winY"`
@@ -69,7 +73,9 @@ func Defaults() *Settings {
 		FetchOrigName:    false, // 与原版 vripper 默认一致：不为文件名访问页面（要真名在设置里开）
 		FetchFloorTitle:  true,
 		ForumDomain:      "vipergirls.to",
-		Mirrors:          "", // 论坛备用域名；留空 = 只用主域名
+		VRJumpOnAdd:      true,  // 默认勾选“每次添加时跳转”
+		VRBeepOnAdd:      false, // 默认不勾选“添加后播放提示音”
+		Mirrors:          "",    // 论坛备用域名；留空 = 只用主域名
 		ProxyEnabled:     false,
 		RateLimit:        2,
 		AutoLogin:        false,

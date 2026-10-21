@@ -88,6 +88,22 @@
   #gv-app .gv-table.editing .gv-row, #gv-app .gv-table.editing .gv-hrow { padding-left: 26px; }
   #gv-app .gv-ckbox { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); margin: 0; width: 13px; height: 13px; cursor: pointer; z-index: 3; }
   #gv-app .gv-row { position: relative; height: 26px; border-bottom: 1px solid #dedee0; user-select: none; cursor: default; }
+  /* 图片预览表头（设置→下载→图片预览表头）：行高加倍，左侧让出一列显示
+     首图缩略。预览列不进 grid（绝对定位 + padding 让位），列宽/排序系统
+     完全不感知它；编辑模式勾选框占据左侧 26px 时预览格让位隐藏。 */
+  #gv-app[data-pvhead="on"] #gv-dlist:not(.editing) .gv-hrow,
+  #gv-app[data-pvhead="on"] #gv-dlist:not(.editing) .gv-row { padding-left: 62px; }
+  #gv-app[data-pvhead="on"] #gv-dlist:not(.editing) .gv-row { height: 52px; align-items: center; }
+  #gv-app[data-pvhead="on"] #gv-dlist:not(.editing) .gv-row > span { align-self: center; }
+  /* 选择器带 > span 提升特异性：下面 #gv-app .gv-hrow > span 的通用规则
+     （position:relative + display:block）会把它压回去，预览列就会掉进
+     grid 隐式列、把整行表头挤错一位 */
+  #gv-app .gv-hrow > span.gv-pvcol { display: none; position: absolute; left: 6px; top: 0; height: 23px; line-height: 23px; min-width: 0; }
+  #gv-app .gv-hrow > span.gv-pvcol::after { content: none; }
+  #gv-app[data-pvhead="on"] #gv-dlist:not(.editing) .gv-hrow > span.gv-pvcol { display: block; }
+  #gv-app .gv-row > span.gv-pvcell { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); width: 52px; height: 46px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #gv-app[data-pvhead="on"] #gv-dlist.editing .gv-pvcell { display: none; }
+  #gv-app .gv-pvcell img { max-width: 100%; max-height: 100%; object-fit: cover; border-radius: 2px; background: #f0f0f2; }
   /* 用户标记：行左侧 3px 色条。用伪元素而不是 box-shadow——黄色主题行自带
      box-shadow，会按优先级把色条盖掉（之前就是这个原因看不到颜色）。 */
   #gv-app .gv-row[data-mark]::before {
@@ -348,7 +364,7 @@
   #gv-app .gv-dmenu button:hover { background: #ddddde; }
   #gv-app .gv-setmask { position: absolute; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; z-index: 70; }
   #gv-app .gv-setmask.open { display: flex; }
-  #gv-app .gv-setwin { width: min(640px, 94%); height: min(460px, 88%); background: var(--gv-panel); border: 1px solid var(--gv-line); border-radius: 8px; display: flex; overflow: hidden; }
+  #gv-app .gv-setwin { width: min(832px, 94%); height: min(598px, 90%); background: var(--gv-panel); border: 1px solid var(--gv-line); border-radius: 8px; display: flex; overflow: hidden; }
   #gv-app .gv-setside { width: 118px; flex-shrink: 0; background: var(--gv-bg); border-right: 1px solid var(--gv-line); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
   #gv-app .gv-setside button { border: none; background: transparent; color: var(--gv-fg2); text-align: left; padding: 6px 10px; border-radius: 6px; font: inherit; cursor: pointer; }
   #gv-app .gv-setside button.on { background: var(--gv-accent); color: #fff; }
@@ -719,8 +735,11 @@
               <div class="gv-frow"><label>按论坛板块分类</label><input type="checkbox" id="gv-s-forumsort"></div>
               <div class="gv-setgrp">预览</div>
               <div class="gv-frow"><label>显示图片预览栏</label><input type="checkbox" id="gv-s-preview"></div>
+              <div class="gv-frow"><label>图片预览表头</label><input type="checkbox" id="gv-s-prevhead"><span class="gv-hint">开启后下载列表行高加倍，最左侧多一列“预览”，直接显示每个条目的首图缩略</span></div>
               <div class="gv-setgrp">其他</div>
               <div class="gv-frow"><label>下载中关窗前先确认</label><input type="checkbox" id="gv-s-tray"><span class="gv-hint">勾选后：还有任务在下载时，点 × 或 文件 → 退出 都会先弹确认框（收进任务栏 / 强制退出 / 取消）；取消勾选则直接退出、不提示</span></div>
+              <div class="gv-frow"><label>每次添加时跳转</label><input type="checkbox" id="gv-s-vrjump"><span class="gv-hint">论坛 vr: 按钮添加成功后，把本程序窗口提到最前</span></div>
+              <div class="gv-frow"><label>添加后播放提示音</label><input type="checkbox" id="gv-s-vrbeep"><span class="gv-hint">论坛 vr: 按钮添加成功后响一声，与下面的完成提示音是同一个声音</span></div>
               <div class="gv-frow"><label>任务完成提示音</label><input type="checkbox" id="gv-s-sound"><button class="gv-addbtn" id="gv-s-soundtest">试听</button><span class="gv-hint">队列里正在下载的任务全部下完时响一声（点“试听”可立即测试）</span></div>
               <div class="gv-frow"><label>任务完成后自动关机</label><input type="checkbox" id="gv-s-shutdown"><span class="gv-hint">所有任务完成后倒计时 60 秒关机；命令行执行 shutdown /a 可取消</span></div>
             </div>
@@ -837,6 +856,7 @@
       <button data-act="pause"><i data-lucide="square"></i>暂停</button>
       <button data-act="retry"><i data-lucide="rotate-cw"></i>重试失败项</button>
       <button data-act="cleancache"><i data-lucide="eraser"></i>清除解析缓存</button>
+      <button data-act="reloadpv" id="gv-ctxreloadpv"><i data-lucide="image-off"></i>重载预览图</button>
       <div class="gv-msep"></div>
       <button data-act="detail"><i data-lucide="list-tree"></i>查看楼层 / 选图</button>
       <button data-act="rename"><i data-lucide="pencil"></i>重命名</button>

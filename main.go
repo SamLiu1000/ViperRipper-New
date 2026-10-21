@@ -47,6 +47,22 @@ func main() {
 			"人机验证 — 点完“确认是人类”后关闭本窗口"))
 	}
 
+	// 论坛下载按钮（vr: 协议）——必须在 NewApp 之前：
+	// 已有实例在跑时，第二个进程把参数转发过去就退出，不碰数据库
+	// （否则会卡在 bbolt 的 5 秒锁超时上）。注意要放在 --weblogin/--webverify
+	// 子进程判断之后，登录子窗口也是本 exe 的第二个进程，不能被拦。
+	vrArgs := vrArgsFromOS(os.Args[1:])
+	if second, serr := acquireVRSingleInstance(); serr != nil {
+		fmt.Fprintln(os.Stderr, "single-instance check failed:", serr)
+	} else if second {
+		if ferr := forwardToRunningInstance(vrArgs); ferr != nil {
+			fmt.Fprintln(os.Stderr, "forward vr: args failed:", ferr)
+			os.Exit(1)
+		}
+		os.Exit(0) // 参数已交给老实例，本进程到此为止
+	}
+	pendingVRArgs = vrArgs
+
 	t0 := time.Now()
 	app, err := NewApp(dataDir)
 	if err != nil {

@@ -208,6 +208,7 @@ export namespace settings {
 	    existingFiles: string;
 	    perPostFolder: boolean;
 	    showPreview: boolean;
+	    prevHead: boolean;
 	    minimizeTray: boolean;
 	    soundOnDone: boolean;
 	    shutdownOnDone: boolean;
@@ -232,6 +233,8 @@ export namespace settings {
 	    proxyEnabled: boolean;
 	    extBridgeEnabled: boolean;
 	    extBridgePort: number;
+	    vrJumpOnAdd: boolean;
+	    vrBeepOnAdd: boolean;
 	    winX: number;
 	    winY: number;
 	    winW: number;
@@ -250,6 +253,7 @@ export namespace settings {
 	        this.existingFiles = source["existingFiles"];
 	        this.perPostFolder = source["perPostFolder"];
 	        this.showPreview = source["showPreview"];
+	        this.prevHead = source["prevHead"];
 	        this.minimizeTray = source["minimizeTray"];
 	        this.soundOnDone = source["soundOnDone"];
 	        this.shutdownOnDone = source["shutdownOnDone"];
@@ -274,6 +278,8 @@ export namespace settings {
 	        this.proxyEnabled = source["proxyEnabled"];
 	        this.extBridgeEnabled = source["extBridgeEnabled"];
 	        this.extBridgePort = source["extBridgePort"];
+	        this.vrJumpOnAdd = source["vrJumpOnAdd"];
+	        this.vrBeepOnAdd = source["vrBeepOnAdd"];
 	        this.winX = source["winX"];
 	        this.winY = source["winY"];
 	        this.winW = source["winW"];

@@ -55,7 +55,9 @@
     importAnchor: -1,     // shift-range anchor within the import panel
     importQueue: [],      // pending AddLinks batches ({text, count})
     importBusy: false,    // an AddLinks call is in flight
-    retrying: {}          // imageId -> 标记时间(ms)，用于 photolist 状态栏显示“重试中”
+    retrying: {},         // imageId -> 标记时间(ms)，用于 photolist 状态栏显示“重试中”
+    pvFirst: {},          // postId -> 首图 URL 缓存（“图片预览表头”列懒加载用）
+    pvLoading: {}         // postId -> [img元素]，ListImages 在飞时挂起的预览格
   };
 
   function icons() {
@@ -565,6 +567,88 @@
     list.scrollTop = keep;
   }
 
+  // ---------- 图片预览表头（设置→下载） ----------
+  // 开关状态直接读 #gv-app 的 data-pvhead 属性：保存设置、启动恢复两条路
+  // 都走 applyPvHead 写它，行渲染（postRow）读它，不需要额外同步。
+
+  function pvHeadOn() {
+    return app.getAttribute('data-pvhead') === 'on';
+  }
+
+  // applyPvHead 切换预览列：表头最左插入/移除“预览”文字列（绝对定位，
+  // 不进 grid），开关关闭时顺手清掉行内已插入的预览格。
+  function applyPvHead(on) {
+    app.setAttribute('data-pvhead', on ? 'on' : 'off');
+    var hrow = $('gv-dlist').querySelector('.gv-hrow');
+    if (hrow) {
+      var col = hrow.querySelector('.gv-pvcol');
+      if (on && !col) {
+        col = document.createElement('span');
+        col.className = 'gv-pvcol';
+        col.textContent = '预览';
+        hrow.insertBefore(col, hrow.firstChild);
+      } else if (!on && col) {
+        col.remove();
+      }
+    }
+    if (!on) $('gv-dlist').querySelectorAll('.gv-pvcell').forEach(function (c) { c.remove(); });
+  }
+
+  // ensurePvThumbs 给列表里还没有 src 的预览格挂 IntersectionObserver：
+  // 只有滚进视口的行才去查首图，几百行的列表不会一口气发几百个请求。
+  var pvObserver = null;
+  function ensurePvThumbs(listEl) {
+    if (!pvHeadOn() || !listEl) return;
+    if (!pvObserver) {
+      pvObserver = new IntersectionObserver(function (ents) {
+        ents.forEach(function (en) {
+          if (!en.isIntersecting) return;
+          pvObserver.unobserve(en.target);
+          loadPvThumb(en.target);
+        });
+      }, { root: listEl, rootMargin: '120px' });
+    }
+    listEl.querySelectorAll('.gv-pvcell img:not([src])').forEach(function (img) {
+      var row = img.closest('.gv-row');
+      if (row) pvObserver.observe(row);
+    });
+  }
+
+  // loadPvThumb 取一个条目的首图并填进预览格。首图 id/URL 按帖子缓存，
+  // 同帖多行（管理视图）和重渲染都直接复用；在飞的请求把等待的 img 攒起来。
+  function loadPvThumb(row) {
+    var img = row.querySelector('.gv-pvcell img');
+    if (!img || img.getAttribute('src')) return;
+    // 加载失败把 src 撤掉：空 img 不渲染破图图标，右键“重载预览图”可重试
+    img.onerror = function () { img.removeAttribute('src'); };
+    var pid = +row.getAttribute('data-id');
+    if (!pid) return;
+    if (state.pvFirst[pid]) { img.src = state.pvFirst[pid]; return; }
+    if (state.pvLoading[pid]) { state.pvLoading[pid].push(img); return; }
+    state.pvLoading[pid] = [img];
+    App().ListImages(pid).then(function (imgs) {
+      var im = (imgs || [])[0];
+      // 与 showPreviewImage 同一套取图优先级：本地文件 → 直链 → 缩略端点
+      var url = '';
+      if (im) url = (im.state === 'done' && im.filePath) ? ('/local/' + im.id)
+        : (im.directUrl || (im.thumbUrl ? '/thumbs/' + im.id : ''));
+      if (url) state.pvFirst[pid] = url;
+      (state.pvLoading[pid] || []).forEach(function (el) { if (url) el.src = url; });
+      delete state.pvLoading[pid];
+    }).catch(function () { delete state.pvLoading[pid]; });
+  }
+
+  // reloadPvThumb 强制重取一个条目的预览图：清掉 URL 缓存和已填的 src，
+  // 再走一遍懒加载（首图可能已下载完成，/local 直读磁盘就能显示）。
+  function reloadPvThumb(pid) {
+    if (!pid) return;
+    delete state.pvFirst[pid];
+    var row = $('gv-dlist').querySelector('.gv-row[data-id="' + pid + '"]');
+    if (!row) return;
+    row.querySelectorAll('.gv-pvcell img').forEach(function (img) { img.removeAttribute('src'); });
+    loadPvThumb(row);
+  }
+
   function postRow(p, interactive) {
     var st = statusOf(p);
     var row = document.createElement('div');
@@ -591,6 +675,13 @@
       openCtx(b.left, b.bottom + 4, p.id);
     });
     row.appendChild(more);
+    // 图片预览表头：行内绝对定位的缩略格（不占 grid 列），src 由懒加载填
+    if (pvHeadOn()) {
+      var pv = document.createElement('span');
+      pv.className = 'gv-pvcell';
+      pv.innerHTML = '<img draggable="false" alt="">';
+      row.appendChild(pv);
+    }
     row.addEventListener('click', function (e) {
       if (state.editMode) { editRowClick('p' + p.id, e); return; }
       selectPost(p.id, e.ctrlKey, e.shiftKey);
@@ -607,6 +698,7 @@
   }
 
   function finishDlist() {
+    ensurePvThumbs($('gv-dlist'));
     // 兜底：管理视图里那个钉住的主题行必须能退出。万一按钮被哪次 DOM 操作
     // （列宽重排、行重建…）弄丢了，这里补回来。
     if (state.viewThread > 0) {
@@ -1264,6 +1356,9 @@
       delBtn.innerHTML = '<i data-lucide="trash-2"></i>删除条目';
       delBtn.title = '删除选中的条目';
     }
+    // 预览表头没开就没有预览图可重载，菜单项不出现
+    var rpv = $('gv-ctxreloadpv');
+    if (rpv) rpv.style.display = pvHeadOn() ? '' : 'none';
     var detailBtn = ctx.querySelector('[data-act="detail"]');
     var n = state.sel.length;
     var detailTarget = state.ctxPost
@@ -1405,6 +1500,9 @@
           break;
         }
         if (sel.length) App().StartPosts(sel.map(function (p) { return p.id; }));
+        break;
+      case 'reloadpv':
+        reloadPvThumb(state.ctxPost);
         break;
       case 'pause':
         if (isThread) {
@@ -1970,6 +2068,7 @@
     $('gv-s-perfolder').value = s.perPostFolder ? '1' : '0';
     $('gv-s-forumsort').checked = !!s.sortByForum;
     $('gv-s-preview').checked = !!s.showPreview;
+    $('gv-s-prevhead').checked = !!s.prevHead;
     $('gv-s-tray').checked = !!s.minimizeTray;
     $('gv-s-sound').checked = !!s.soundOnDone;
     $('gv-s-shutdown').checked = !!s.shutdownOnDone;
@@ -1993,6 +2092,8 @@
     $('gv-s-autologin').checked = !!s.autoLogin;
     $('gv-s-exton').checked = s.extBridgeEnabled !== false;
     $('gv-s-extport').value = (s.extBridgePort === undefined || s.extBridgePort === null) ? 47821 : s.extBridgePort;
+    $('gv-s-vrjump').checked = !!s.vrJumpOnAdd;
+    $('gv-s-vrbeep').checked = !!s.vrBeepOnAdd;
     refreshLoginState();
     refreshExtState();
   }
@@ -2002,6 +2103,7 @@
       perPostFolder: $('gv-s-perfolder').value === '1',
       sortByForum: $('gv-s-forumsort').checked,
       showPreview: $('gv-s-preview').checked,
+      prevHead: $('gv-s-prevhead').checked,
       minimizeTray: $('gv-s-tray').checked,
       soundOnDone: $('gv-s-sound').checked,
       shutdownOnDone: $('gv-s-shutdown').checked,
@@ -2024,6 +2126,8 @@
       autoLogin: $('gv-s-autologin').checked,
       extBridgeEnabled: $('gv-s-exton').checked,
       extBridgePort: Math.max(0, Math.min(65535, parseInt($('gv-s-extport').value, 10) || 0)),
+      vrJumpOnAdd: $('gv-s-vrjump').checked,
+      vrBeepOnAdd: $('gv-s-vrbeep').checked,
       // 列表排序是表头点出来的，不在设置界面里；保存设置时要原样带回去，
       // 否则会被重置成默认（重启后排序丢失）。普通列表 / 主题管理各一份。
       sortCol: (state.normalSort || state.sort).col,
@@ -2058,6 +2162,8 @@
       setToggle('gv-s-proxyon', !!payload.proxyEnabled);
       state.settings = payload;      // 提示音/预览等即时项跟着新设置走
       app.setAttribute('data-prev', payload.showPreview ? 'on' : 'off');
+      applyPvHead(payload.prevHead); // 预览表头即时生效（含表头列插入/行重建）
+      renderPosts();
       toast('设置已保存');
       refreshExtState();
     }).catch(function (err) { toast('保存失败：' + err); });
@@ -2774,7 +2880,10 @@
       // 否则下面用列索引取 cells[ci] 会越界，apply() 中途抛异常、列宽只应用一半，
       // 表现为“楼层列表排版错乱”。
       return [...container.children].filter(function (el) {
-        return !(el.classList && el.classList.contains('gv-ckbox'));
+        // gv-ckbox：编辑模式勾选框；gv-pvcol/gv-pvcell：预览表头列
+        // （都是绝对定位、不占 grid 列，列宽/排序系统必须无视它们）
+        return !(el.classList && (el.classList.contains('gv-ckbox') ||
+          el.classList.contains('gv-pvcol') || el.classList.contains('gv-pvcell')));
       });
     }
 
@@ -3292,6 +3401,15 @@
       });
     });
 
+    // 论坛 vr: 按钮导入是 Go 侧发起的，前端没参与那次 AddLinks 调用；
+    // 结果在这里接住：走和手动粘贴完全相同的摘要条 + 导入历史 + 列表重排
+    // （不刷新的话，新条目要等下次加载才会按“添加日期”排到最上面）
+    window.runtime.EventsOn('links:imported', function (res, beep) {
+      recordImport(res);
+      refreshAll();
+      if (beep) playDoneSound();
+    });
+
     // 下载中点 × ：后端拦下关闭并要求前端确认（最小化继续 / 强制退出 / 取消）
     window.runtime.EventsOn('app:closebusy', function () {
       $('gv-closemask').classList.add('open');
@@ -3520,6 +3638,7 @@
       state.threadSort = { col: clampCol(s.threadSortCol), dir: clampDir(s.threadSortDir) };
       state.sortView = 'dl';
       state.sort = { col: state.normalSort.col, dir: state.normalSort.dir };
+      applyPvHead(s.prevHead); // 必须在 renderPosts 前：行渲染按它决定插不插预览格
       renderPosts(undefined, true); // forceSort：按恢复的排序真的重排
     });
     refreshAll();
